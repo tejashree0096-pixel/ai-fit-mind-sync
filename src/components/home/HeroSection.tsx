@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Zap, Play, Brain, Dumbbell, Apple, Heart } from "lucide-react";
+import { Zap, Brain, Dumbbell, Apple, Heart } from "lucide-react";
 
 export const HeroSection = () => {
   return (
@@ -56,18 +56,12 @@ export const HeroSection = () => {
             that evolves with your progress. Your AI fitness journey starts here.
           </p>
 
-          {/* CTA Buttons */}
+          {/* CTA Button */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up delay-300">
-            <Link to="/onboarding">
+            <Link to="/auth">
               <Button variant="gradient" size="xl" className="w-full sm:w-auto gap-2">
                 <Zap className="w-5 h-5" />
                 Start Free Today
-              </Button>
-            </Link>
-            <Link to="/about">
-              <Button variant="glass" size="xl" className="w-full sm:w-auto gap-2">
-                <Play className="w-5 h-5" />
-                Watch Demo
               </Button>
             </Link>
           </div>

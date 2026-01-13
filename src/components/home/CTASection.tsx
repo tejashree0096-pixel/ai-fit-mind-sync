@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Zap, ArrowRight } from "lucide-react";
+import { Zap } from "lucide-react";
 
 export const CTASection = () => {
   return (
@@ -23,18 +23,12 @@ export const CTASection = () => {
             personalization. Start your transformation today.
           </p>
 
-          {/* CTA Buttons */}
+          {/* CTA Button */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/onboarding">
+            <Link to="/auth">
               <Button variant="gradient" size="xl" className="w-full sm:w-auto gap-2">
                 <Zap className="w-5 h-5" />
                 Start Your Free Trial
-              </Button>
-            </Link>
-            <Link to="/about">
-              <Button variant="outline" size="xl" className="w-full sm:w-auto gap-2">
-                Learn More
-                <ArrowRight className="w-5 h-5" />
               </Button>
             </Link>
           </div>

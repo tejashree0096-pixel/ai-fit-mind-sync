@@ -5,7 +5,7 @@ export const Footer = () => {
   return (
     <footer className="bg-card/50 border-t border-border/50 mt-auto">
       <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Brand */}
           <div className="md:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
@@ -50,27 +50,12 @@ export const Footer = () => {
               ))}
             </ul>
           </div>
-
-          {/* Project Info */}
-          <div>
-            <h4 className="font-display font-semibold text-foreground mb-4">Project Info</h4>
-            <ul className="space-y-3 text-sm text-muted-foreground">
-              <li>Final Year BCA Project</li>
-              <li>AI & Machine Learning</li>
-              <li>Health & Fitness Domain</li>
-              <li>
-                <Link to="/about" className="hover:text-primary transition-colors">
-                  About the Project →
-                </Link>
-              </li>
-            </ul>
-          </div>
         </div>
 
         {/* Bottom Bar */}
         <div className="mt-12 pt-8 border-t border-border/50 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground text-center md:text-left">
-            © 2024 AI Fitness Arena. Built with <Heart className="w-4 h-4 inline text-destructive" /> for Final Year BCA Project.
+            © 2024 AI Fitness Arena. Built with <Heart className="w-4 h-4 inline text-destructive" />
           </p>
           <p className="text-sm text-muted-foreground">
             Powered by AI • React • TypeScript

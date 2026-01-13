@@ -1,11 +1,17 @@
-import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Dumbbell, Zap } from "lucide-react";
+import { Menu, X, Dumbbell, Zap, LogOut } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { User } from "@supabase/supabase-js";
+import { toast } from "sonner";
 
-const navLinks = [
+const publicLinks = [
   { name: "Home", path: "/" },
-  { name: "About", path: "/about" },
+  { name: "Contact", path: "/contact" },
+];
+
+const protectedLinks = [
   { name: "Dashboard", path: "/dashboard" },
   { name: "Workouts", path: "/workouts" },
   { name: "Nutrition", path: "/nutrition" },
@@ -15,7 +21,29 @@ const navLinks = [
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast.success("Logged out successfully");
+    navigate("/");
+  };
+
+  const navLinks = user ? [...publicLinks, ...protectedLinks] : publicLinks;
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
@@ -54,12 +82,19 @@ export const Navbar = () => {
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            <Link to="/onboarding">
-              <Button variant="gradient" size="default" className="gap-2">
-                <Zap className="w-4 h-4" />
-                Get Started
+            {user ? (
+              <Button variant="outline" onClick={handleLogout} className="gap-2">
+                <LogOut className="w-4 h-4" />
+                Logout
               </Button>
-            </Link>
+            ) : (
+              <Link to="/auth">
+                <Button variant="gradient" size="default" className="gap-2">
+                  <Zap className="w-4 h-4" />
+                  Get Started
+                </Button>
+              </Link>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -89,12 +124,19 @@ export const Navbar = () => {
                   {link.name}
                 </Link>
               ))}
-              <Link to="/onboarding" onClick={() => setIsOpen(false)}>
-                <Button variant="gradient" className="w-full mt-2 gap-2">
-                  <Zap className="w-4 h-4" />
-                  Get Started
+              {user ? (
+                <Button variant="outline" onClick={handleLogout} className="w-full mt-2 gap-2">
+                  <LogOut className="w-4 h-4" />
+                  Logout
                 </Button>
-              </Link>
+              ) : (
+                <Link to="/auth" onClick={() => setIsOpen(false)}>
+                  <Button variant="gradient" className="w-full mt-2 gap-2">
+                    <Zap className="w-4 h-4" />
+                    Get Started
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         )}
