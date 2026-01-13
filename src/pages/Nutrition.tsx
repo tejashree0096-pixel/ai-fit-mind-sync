@@ -36,9 +36,23 @@ import {
   ChevronLeft,
   ChevronRight,
   Leaf,
-  Activity
+  Activity,
+  Loader2,
+  RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
+
+interface AIRecommendation {
+  meals: Array<{
+    name: string;
+    benefit: string;
+    calories: number;
+    protein: number;
+  }>;
+  stressTip: string;
+  hydrationTip: string;
+  overallAdvice: string;
+}
 
 interface FoodItem {
   name: string;
@@ -187,6 +201,54 @@ const Nutrition = () => {
     { day: "Sat", mood: 9, energy: 8, sleep: 9 },
     { day: "Sun", mood: 8, energy: 7, sleep: 8 },
   ]);
+  const [aiRecommendations, setAiRecommendations] = useState<AIRecommendation | null>(null);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
+
+  const fetchAIRecommendations = async () => {
+    setIsLoadingAI(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/meal-recommendations`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            mood: currentMood.mood,
+            energy: currentMood.energy,
+            stress: currentMood.stress,
+            sleep: currentMood.sleep,
+            currentCalories: dailyIntake.calories.current,
+            targetCalories: dailyIntake.calories.target,
+            proteinGap: dailyIntake.protein.target - dailyIntake.protein.current,
+          }),
+        }
+      );
+
+      if (response.status === 429) {
+        toast.error("Too many requests. Please try again in a moment.");
+        return;
+      }
+      if (response.status === 402) {
+        toast.error("AI credits depleted. Please add credits to continue.");
+        return;
+      }
+      if (!response.ok) {
+        throw new Error("Failed to get recommendations");
+      }
+
+      const data = await response.json();
+      setAiRecommendations(data);
+      toast.success("AI recommendations updated!");
+    } catch (error) {
+      console.error("Error fetching AI recommendations:", error);
+      toast.error("Failed to get AI recommendations. Please try again.");
+    } finally {
+      setIsLoadingAI(false);
+    }
+  };
 
   const proteinGap = dailyIntake.protein.target - dailyIntake.protein.current;
   const days = Object.keys(weeklyDietPlan);
@@ -412,20 +474,81 @@ const Nutrition = () => {
               </div>
             </div>
 
-            {/* AI Suggestion */}
+            {/* AI Personalized Recommendations */}
             <div className="glass-card p-5 rounded-2xl border-l-4 border-l-teal-400 bg-gradient-to-r from-teal-500/5 to-blue-500/5">
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-teal-400/10">
-                  <Sparkles className="w-5 h-5 text-teal-500" />
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-teal-400/10">
+                    <Sparkles className="w-5 h-5 text-teal-500" />
+                  </div>
+                  <h3 className="font-semibold">AI Meal Recommendations</h3>
                 </div>
-                <div>
-                  <h3 className="font-semibold mb-1">AI Food Suggestion</h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchAIRecommendations}
+                  disabled={isLoadingAI}
+                  className="border-teal-500/30 hover:bg-teal-500/10"
+                >
+                  {isLoadingAI ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                  )}
+                  {isLoadingAI ? "Analyzing..." : "Get AI Tips"}
+                </Button>
+              </div>
+
+              {aiRecommendations ? (
+                <div className="space-y-4">
+                  {/* Recommended Meals */}
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-teal-600">Recommended for your mood & goals:</p>
+                    {aiRecommendations.meals.map((meal, i) => (
+                      <div key={i} className="flex items-center gap-3 p-3 bg-white/50 rounded-xl">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500/20 to-teal-500/20 flex items-center justify-center text-lg">
+                          {i === 0 ? "🥗" : i === 1 ? "🍲" : "🥤"}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{meal.name}</p>
+                          <p className="text-xs text-muted-foreground">{meal.benefit}</p>
+                        </div>
+                        <div className="text-right text-xs">
+                          <span className="text-teal-600 font-medium">{meal.calories} kcal</span>
+                          <span className="text-muted-foreground"> • {meal.protein}g protein</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Tips */}
+                  <div className="grid gap-2">
+                    <div className="p-3 bg-blue-500/10 rounded-xl">
+                      <p className="text-xs font-medium text-blue-600">🧘 Stress Relief Tip</p>
+                      <p className="text-sm text-muted-foreground mt-1">{aiRecommendations.stressTip}</p>
+                    </div>
+                    <div className="p-3 bg-green-500/10 rounded-xl">
+                      <p className="text-xs font-medium text-green-600">💧 Hydration Tip</p>
+                      <p className="text-sm text-muted-foreground mt-1">{aiRecommendations.hydrationTip}</p>
+                    </div>
+                  </div>
+
+                  {/* Overall Advice */}
+                  <div className="p-3 bg-gradient-to-r from-teal-500/10 to-blue-500/10 rounded-xl">
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-medium text-teal-600">✨ </span>
+                      {aiRecommendations.overallAdvice}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <Sparkles className="w-8 h-8 mx-auto mb-2 text-teal-400/50" />
                   <p className="text-sm text-muted-foreground">
-                    To reach your protein goal, add 2 boiled eggs (12g protein) or a bowl of soya chunks 
-                    (52g protein per 100g) to your next meal.
+                    Click "Get AI Tips" for personalized meal recommendations based on your mood, stress, and nutritional goals.
                   </p>
                 </div>
-              </div>
+              )}
             </div>
           </TabsContent>
 
