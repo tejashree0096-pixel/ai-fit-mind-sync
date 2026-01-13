@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { Dumbbell, Github, Linkedin, Mail, Heart } from "lucide-react";
+import { Github, Linkedin, Mail, Heart } from "lucide-react";
+import logoImage from "@/assets/logo.png";
 
 export const Footer = () => {
   return (
@@ -9,13 +10,11 @@ export const Footer = () => {
           {/* Brand */}
           <div className="md:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="bg-gradient-to-br from-cyan-400 to-blue-500 p-2 rounded-xl">
-                <Dumbbell className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="font-display font-bold text-xl">
-                <span className="gradient-text">AI Fitness</span>
-                <span className="text-foreground"> Arena</span>
-              </span>
+              <img 
+                src={logoImage} 
+                alt="AI Fitness Arena" 
+                className="h-16 w-auto object-contain"
+              />
             </Link>
             <p className="text-muted-foreground text-sm leading-relaxed max-w-md">
               Your AI-powered fitness companion. Personalized workouts, smart nutrition tracking, 
