@@ -13,22 +13,22 @@ export const HeroSection = () => {
       {/* Floating Elements */}
       <div className="absolute top-32 right-[15%] hidden lg:block animate-float">
         <div className="glass-card p-4 rounded-2xl">
-          <Dumbbell className="w-8 h-8 text-primary" />
+          <Dumbbell className="w-8 h-8 text-green-500" />
         </div>
       </div>
       <div className="absolute top-48 left-[10%] hidden lg:block animate-float" style={{ animationDelay: "2s" }}>
         <div className="glass-card p-4 rounded-2xl">
-          <Brain className="w-8 h-8 text-accent" />
+          <Brain className="w-8 h-8 text-teal-500" />
         </div>
       </div>
       <div className="absolute bottom-32 left-[20%] hidden lg:block animate-float" style={{ animationDelay: "4s" }}>
         <div className="glass-card p-4 rounded-2xl">
-          <Apple className="w-8 h-8 text-orange-400" />
+          <Apple className="w-8 h-8 text-blue-500" />
         </div>
       </div>
       <div className="absolute bottom-48 right-[12%] hidden lg:block animate-float" style={{ animationDelay: "3s" }}>
         <div className="glass-card p-4 rounded-2xl">
-          <Heart className="w-8 h-8 text-destructive" />
+          <Heart className="w-8 h-8 text-green-400" />
         </div>
       </div>
 
