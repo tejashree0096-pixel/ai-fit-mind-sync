@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Dumbbell, Zap, LogOut } from "lucide-react";
+import { Menu, X, Zap, LogOut } from "lucide-react";
+import logoImage from "@/assets/logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { toast } from "sonner";
@@ -51,16 +52,11 @@ export const Navbar = () => {
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="relative">
-              <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full group-hover:bg-primary/30 transition-all duration-300" />
-              <div className="relative bg-gradient-to-br from-cyan-400 to-blue-500 p-2 rounded-xl">
-                <Dumbbell className="w-5 h-5 md:w-6 md:h-6 text-primary-foreground" />
-              </div>
-            </div>
-            <span className="font-display font-bold text-lg md:text-xl">
-              <span className="gradient-text">AI Fitness</span>
-              <span className="text-foreground"> Arena</span>
-            </span>
+            <img 
+              src={logoImage} 
+              alt="AI Fitness Arena" 
+              className="h-12 md:h-14 w-auto object-contain"
+            />
           </Link>
 
           {/* Desktop Nav */}
