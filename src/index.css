@@ -6,58 +6,58 @@
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 222 47% 11%;
+    --background: 180 20% 98%;
+    --foreground: 180 40% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 180 40% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 180 40% 10%;
 
-    --primary: 187 100% 40%;
+    --primary: 160 84% 39%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 180 20% 96%;
+    --secondary-foreground: 180 40% 10%;
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 222 30% 45%;
+    --muted: 180 15% 94%;
+    --muted-foreground: 180 25% 40%;
 
-    --accent: 280 100% 55%;
+    --accent: 200 100% 45%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 187 100% 40%;
+    --border: 180 15% 88%;
+    --input: 180 15% 88%;
+    --ring: 160 84% 39%;
 
     --radius: 0.75rem;
 
-    /* Custom design tokens */
-    --gradient-primary: linear-gradient(135deg, hsl(187 100% 40%), hsl(220 100% 50%));
-    --gradient-accent: linear-gradient(135deg, hsl(280 100% 55%), hsl(320 100% 50%));
-    --gradient-energy: linear-gradient(135deg, hsl(35 100% 55%), hsl(15 100% 55%));
+    /* Custom design tokens - Green, Teal, Blue */
+    --gradient-primary: linear-gradient(135deg, hsl(160 84% 39%), hsl(175 70% 40%));
+    --gradient-accent: linear-gradient(135deg, hsl(175 70% 40%), hsl(200 100% 45%));
+    --gradient-energy: linear-gradient(135deg, hsl(160 84% 39%), hsl(200 100% 45%));
     --gradient-success: linear-gradient(135deg, hsl(150 80% 45%), hsl(170 80% 45%));
-    --gradient-dark: linear-gradient(180deg, hsl(220 14% 96%), hsl(220 14% 92%));
+    --gradient-dark: linear-gradient(180deg, hsl(180 20% 96%), hsl(180 20% 92%));
     
-    --glow-primary: 0 0 30px hsl(187 100% 40% / 0.3);
-    --glow-accent: 0 0 30px hsl(280 100% 55% / 0.3);
-    --glow-energy: 0 0 30px hsl(35 100% 55% / 0.3);
+    --glow-primary: 0 0 30px hsl(160 84% 39% / 0.3);
+    --glow-accent: 0 0 30px hsl(200 100% 45% / 0.3);
+    --glow-energy: 0 0 30px hsl(175 70% 40% / 0.3);
     
-    --shadow-card: 0 8px 32px hsl(220 30% 80% / 0.3);
-    --shadow-elevated: 0 20px 60px hsl(220 30% 70% / 0.3);
+    --shadow-card: 0 8px 32px hsl(180 30% 80% / 0.3);
+    --shadow-elevated: 0 20px 60px hsl(180 30% 70% / 0.3);
 
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 187 100% 40%;
+    --sidebar-foreground: 180 40% 10%;
+    --sidebar-primary: 160 84% 39%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 96%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 187 100% 40%;
+    --sidebar-accent: 180 20% 96%;
+    --sidebar-accent-foreground: 180 40% 10%;
+    --sidebar-border: 180 15% 88%;
+    --sidebar-ring: 160 84% 39%;
   }
 }
 
