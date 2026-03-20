@@ -45,7 +45,7 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
   const { speak, speakStep, stop: stopVoice, isSpeaking, isSupported } = useVoiceCoach({
     enabled: voiceEnabled,
     volume: voiceVolume,
-    rate: speed > 1.5 ? 1.2 : speed < 0.75 ? 0.8 : 1.0,
+    rate: speed > 1.5 ? 1.0 : speed < 0.75 ? 0.65 : 0.8,
   });
 
   const TRANSITION_DURATION = 800 / speed;

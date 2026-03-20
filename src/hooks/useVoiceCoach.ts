@@ -6,7 +6,7 @@ interface UseVoiceCoachOptions {
   rate?: number; // speech rate 0.5 to 2
 }
 
-export function useVoiceCoach({ enabled, volume, rate = 0.9 }: UseVoiceCoachOptions) {
+export function useVoiceCoach({ enabled, volume, rate = 0.75 }: UseVoiceCoachOptions) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
