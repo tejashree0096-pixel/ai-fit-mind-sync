@@ -61,7 +61,7 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentFrame, setCurrentFrame] = useState(0);
   const [speed, setSpeed] = useState(1);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const animation = exerciseAnimations[exerciseName] || defaultAnimation;
   const frames = animation.frames;
