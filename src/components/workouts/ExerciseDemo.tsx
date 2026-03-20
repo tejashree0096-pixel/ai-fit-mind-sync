@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Play, Pause, RotateCcw, Gauge } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Play, Pause, RotateCcw, ChevronLeft, ChevronRight, Zap } from "lucide-react";
+import { HumanFigure } from "./HumanFigure";
+import { exerciseAnimationData, defaultAnimation, type ExerciseStep } from "./exerciseAnimationData";
 
 interface ExerciseDemoProps {
   exerciseName: string;
@@ -8,169 +11,314 @@ interface ExerciseDemoProps {
   isVisible: boolean;
 }
 
-// Animated stick-figure exercise demonstrations
-const exerciseAnimations: Record<string, { frames: string[]; tips: string[] }> = {
-  "Push-ups": {
-    frames: [
-      "M50,30 L50,55 L35,75 L30,95 M50,55 L65,75 L70,95 M50,30 L30,50 M50,30 L70,50", // up
-      "M50,35 L50,58 L35,72 L32,90 M50,58 L65,72 L68,90 M50,35 L25,48 M50,35 L75,48", // mid
-      "M50,40 L50,60 L35,70 L33,85 M50,60 L65,70 L67,85 M50,40 L20,45 M50,40 L80,45", // down
-      "M50,35 L50,58 L35,72 L32,90 M50,58 L65,72 L68,90 M50,35 L25,48 M50,35 L75,48", // mid
-    ],
-    tips: ["Keep core tight", "Full range of motion", "Elbows at 45°"],
-  },
-  "Bodyweight Squats": {
-    frames: [
-      "M50,20 L50,45 L45,65 L45,90 M50,45 L55,65 L55,90 M50,35 L35,40 M50,35 L65,40", // standing
-      "M50,25 L50,48 L42,62 L40,82 M50,48 L58,62 L60,82 M50,38 L33,43 M50,38 L67,43", // quarter
-      "M50,30 L50,52 L38,60 L35,75 M50,52 L62,60 L65,75 M50,42 L30,47 M50,42 L70,47", // half
-      "M50,35 L50,55 L35,58 L30,70 M50,55 L65,58 L70,70 M50,45 L28,50 M50,45 L72,50", // deep
-      "M50,30 L50,52 L38,60 L35,75 M50,52 L62,60 L65,75 M50,42 L30,47 M50,42 L70,47", // half
-      "M50,25 L50,48 L42,62 L40,82 M50,48 L58,62 L60,82 M50,38 L33,43 M50,38 L67,43", // quarter
-    ],
-    tips: ["Knees over toes", "Chest up", "Push through heels"],
-  },
-  "Plank Hold": {
-    frames: [
-      "M20,45 L50,45 L80,45 M20,45 L15,60 M80,45 L85,60 M50,45 L50,35 L45,30",
-      "M20,44 L50,45 L80,46 M20,44 L15,59 M80,46 L85,61 M50,45 L50,35 L45,30",
-    ],
-    tips: ["Straight line from head to heels", "Engage core", "Don't sag hips"],
-  },
-  "Bench Press": {
-    frames: [
-      "M50,25 L50,50 L40,70 L40,90 M50,50 L60,70 L60,90 M50,35 L25,25 M50,35 L75,25", // top
-      "M50,25 L50,50 L40,70 L40,90 M50,50 L60,70 L60,90 M50,35 L25,35 M50,35 L75,35", // mid
-      "M50,25 L50,50 L40,70 L40,90 M50,50 L60,70 L60,90 M50,35 L25,42 M50,35 L75,42", // bottom
-      "M50,25 L50,50 L40,70 L40,90 M50,50 L60,70 L60,90 M50,35 L25,35 M50,35 L75,35", // mid
-    ],
-    tips: ["Retract shoulder blades", "Feet flat on floor", "Control the descent"],
-  },
-};
-
-const defaultAnimation = {
-  frames: [
-    "M50,20 L50,45 L45,65 L45,90 M50,45 L55,65 L55,90 M50,35 L35,30 M50,35 L65,30",
-    "M50,20 L50,45 L45,65 L45,90 M50,45 L55,65 L55,90 M50,35 L32,35 M50,35 L68,35",
-    "M50,20 L50,45 L45,65 L45,90 M50,45 L55,65 L55,90 M50,35 L35,30 M50,35 L65,30",
-  ],
-  tips: ["Focus on form", "Controlled movement", "Breathe steadily"],
-};
+const SPEEDS = [
+  { label: "0.5×", value: 0.5 },
+  { label: "1×", value: 1 },
+  { label: "1.5×", value: 1.5 },
+  { label: "2×", value: 2 },
+];
 
 export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentFrame, setCurrentFrame] = useState(0);
-  const [speed, setSpeed] = useState(1);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [speedIndex, setSpeedIndex] = useState(1);
+  const [interpolationProgress, setInterpolationProgress] = useState(1);
+  const [showStepView, setShowStepView] = useState(false);
+  const animationRef = useRef<number | null>(null);
+  const lastTimeRef = useRef<number>(0);
+  const holdTimeRef = useRef<number>(0);
 
-  const animation = exerciseAnimations[exerciseName] || defaultAnimation;
-  const frames = animation.frames;
+  const animation = exerciseAnimationData[exerciseName] || defaultAnimation;
+  const steps = animation.steps;
+  const speed = SPEEDS[speedIndex].value;
+
+  const TRANSITION_DURATION = 800 / speed; // ms per transition
+  const HOLD_DURATION = 400 / speed; // ms to hold at each pose
+
+  const stopAnimation = useCallback(() => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+  }, []);
+
+  const animate = useCallback((timestamp: number) => {
+    if (!lastTimeRef.current) lastTimeRef.current = timestamp;
+    const delta = timestamp - lastTimeRef.current;
+
+    // During hold phase
+    if (holdTimeRef.current > 0) {
+      holdTimeRef.current -= delta;
+      lastTimeRef.current = timestamp;
+      if (holdTimeRef.current <= 0) {
+        // Move to next step
+        setCurrentStepIndex(prev => {
+          const next = (prev + 1) % steps.length;
+          return next;
+        });
+        setInterpolationProgress(0);
+      }
+      animationRef.current = requestAnimationFrame(animate);
+      return;
+    }
+
+    // During transition phase
+    setInterpolationProgress(prev => {
+      const newProgress = prev + delta / TRANSITION_DURATION;
+      if (newProgress >= 1) {
+        holdTimeRef.current = HOLD_DURATION;
+        return 1;
+      }
+      return newProgress;
+    });
+
+    lastTimeRef.current = timestamp;
+    animationRef.current = requestAnimationFrame(animate);
+  }, [steps.length, TRANSITION_DURATION, HOLD_DURATION]);
 
   useEffect(() => {
     if (isPlaying && isVisible) {
-      intervalRef.current = setInterval(() => {
-        setCurrentFrame((prev) => (prev + 1) % frames.length);
-      }, 800 / speed);
+      lastTimeRef.current = 0;
+      animationRef.current = requestAnimationFrame(animate);
+    } else {
+      stopAnimation();
     }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isPlaying, speed, frames.length, isVisible]);
+    return stopAnimation;
+  }, [isPlaying, isVisible, animate, stopAnimation]);
 
   useEffect(() => {
     if (!isVisible) {
       setIsPlaying(false);
-      setCurrentFrame(0);
+      setCurrentStepIndex(0);
+      setInterpolationProgress(1);
+      stopAnimation();
     }
-  }, [isVisible]);
+  }, [isVisible, stopAnimation]);
 
   const handlePlayPause = () => setIsPlaying(!isPlaying);
-  const handleReplay = () => { setCurrentFrame(0); setIsPlaying(true); };
-  const toggleSpeed = () => setSpeed((prev) => (prev === 1 ? 0.5 : prev === 0.5 ? 2 : 1));
+  
+  const handleReplay = () => {
+    stopAnimation();
+    setCurrentStepIndex(0);
+    setInterpolationProgress(1);
+    holdTimeRef.current = 0;
+    lastTimeRef.current = 0;
+    setIsPlaying(true);
+  };
+
+  const handleStepNav = (direction: -1 | 1) => {
+    setIsPlaying(false);
+    stopAnimation();
+    setCurrentStepIndex(prev => {
+      const next = prev + direction;
+      if (next < 0) return steps.length - 1;
+      if (next >= steps.length) return 0;
+      return next;
+    });
+    setInterpolationProgress(1);
+  };
+
+  const handleSpeedCycle = () => {
+    setSpeedIndex(prev => (prev + 1) % SPEEDS.length);
+  };
+
+  const handleStepClick = (index: number) => {
+    setIsPlaying(false);
+    stopAnimation();
+    setCurrentStepIndex(index);
+    setInterpolationProgress(1);
+  };
 
   if (!isVisible) return null;
 
-  return (
-    <div className="mt-4 rounded-xl bg-secondary/60 border border-border/50 p-4 animate-slide-up">
-      <div className="flex flex-col sm:flex-row gap-4">
-        {/* Animation viewport */}
-        <div className="relative w-full sm:w-48 h-40 bg-background/60 rounded-lg border border-border/30 flex items-center justify-center overflow-hidden">
-          {/* Neon ring */}
-          <div className="absolute inset-2 rounded-lg border border-primary/20" />
-          
-          <svg viewBox="0 0 100 100" className="w-32 h-32">
-            {/* Body */}
-            <path
-              d={frames[currentFrame]}
-              stroke="hsl(199, 89%, 48%)"
-              strokeWidth="2.5"
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ transition: `d ${600 / speed}ms ease-in-out` }}
-            />
-            {/* Head */}
-            <circle
-              cx="50"
-              cy={parseInt(frames[currentFrame].match(/M(\d+),(\d+)/)?.[2] || "20") - 8}
-              r="6"
-              fill="none"
-              stroke="hsl(199, 89%, 48%)"
-              strokeWidth="2"
-            />
-          </svg>
+  const prevStepIndex = currentStepIndex === 0 ? steps.length - 1 : currentStepIndex - 1;
+  const currentStep = steps[currentStepIndex];
+  const prevStep = steps[prevStepIndex];
 
-          {/* Speed indicator */}
-          <div className="absolute top-2 right-2 text-[10px] font-mono text-muted-foreground bg-card/80 px-1.5 py-0.5 rounded">
-            {speed}x
+  return (
+    <div className="border-t border-border/30 bg-secondary/40 animate-slide-up">
+      <div className="p-4 sm:p-6">
+        {/* Header with exercise info */}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h4 className="font-display font-bold text-sm text-foreground">Exercise Demo</h4>
+            <div className="flex gap-2 mt-1">
+              {animation.muscles.map((m, i) => (
+                <span key={i} className="px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold">
+                  {m}
+                </span>
+              ))}
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                animation.difficulty === "Beginner" ? "bg-accent/15 text-accent" :
+                animation.difficulty === "Intermediate" ? "bg-yellow-500/15 text-yellow-400" :
+                "bg-destructive/15 text-destructive"
+              }`}>
+                {animation.difficulty}
+              </span>
+            </div>
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs h-7 gap-1"
+            onClick={() => setShowStepView(!showStepView)}
+          >
+            {showStepView ? "Animation" : "Steps"}
+          </Button>
         </div>
 
-        {/* Controls & tips */}
-        <div className="flex-1 flex flex-col justify-between min-h-[120px]">
-          <div>
-            <h4 className="font-display font-semibold text-sm text-foreground mb-2">
-              Form Tips — {muscle}
-            </h4>
-            <ul className="space-y-1">
-              {animation.tips.map((tip, i) => (
-                <li key={i} className="text-xs text-muted-foreground flex items-center gap-2">
-                  <span className="w-1 h-1 rounded-full bg-primary flex-shrink-0" />
-                  {tip}
-                </li>
-              ))}
-            </ul>
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* Animation viewport */}
+          <div className="relative w-full lg:w-64 h-56 bg-background/80 rounded-xl border border-border/40 overflow-hidden flex-shrink-0">
+            {/* Subtle grid background */}
+            <div className="absolute inset-0 opacity-[0.04]"
+              style={{
+                backgroundImage: `linear-gradient(hsl(var(--primary)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary)) 1px, transparent 1px)`,
+                backgroundSize: "20px 20px",
+              }}
+            />
+
+            {/* Neon frame */}
+            <div className="absolute inset-1.5 rounded-lg border border-primary/20" />
+
+            {/* Figure */}
+            <div className="relative z-10 flex items-center justify-center h-full p-4">
+              <HumanFigure
+                pose={currentStep.pose}
+                prevPose={prevStep.pose}
+                progress={interpolationProgress}
+              />
+            </div>
+
+            {/* Speed badge */}
+            <div className="absolute top-2 right-2 text-[10px] font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
+              {SPEEDS[speedIndex].label}
+            </div>
+
+            {/* Step counter */}
+            <div className="absolute bottom-2 left-2 text-[10px] font-mono text-muted-foreground bg-card/80 px-2 py-0.5 rounded-md">
+              {currentStepIndex + 1} / {steps.length}
+            </div>
           </div>
 
-          {/* Playback controls */}
-          <div className="flex items-center gap-2 mt-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePlayPause}
-              className="gap-1.5 h-8 text-xs border-border/60"
-            >
-              {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-              {isPlaying ? "Pause" : "Play"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleReplay}
-              className="gap-1.5 h-8 text-xs border-border/60"
-            >
-              <RotateCcw className="w-3 h-3" />
-              Replay
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={toggleSpeed}
-              className="gap-1.5 h-8 text-xs border-border/60"
-            >
-              <Gauge className="w-3 h-3" />
-              {speed === 0.5 ? "Slow" : speed === 1 ? "Normal" : "Fast"}
-            </Button>
+          {/* Controls & info panel */}
+          <div className="flex-1 flex flex-col justify-between min-h-[180px]">
+            {showStepView ? (
+              /* Step-by-step breakdown */
+              <div className="space-y-1.5 mb-3 max-h-[140px] overflow-y-auto pr-1">
+                {steps.map((step, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleStepClick(i)}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center gap-2.5 transition-all duration-200 ${
+                      i === currentStepIndex
+                        ? "bg-primary/15 text-primary border border-primary/30"
+                        : i < currentStepIndex
+                        ? "text-muted-foreground/70 bg-secondary/40"
+                        : "text-muted-foreground hover:bg-secondary/60"
+                    }`}
+                  >
+                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                      i === currentStepIndex
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}>
+                      {i + 1}
+                    </span>
+                    <span className="font-medium">{step.label}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              /* Current step + tips */
+              <div className="mb-3">
+                <div className="bg-primary/10 border border-primary/20 rounded-lg px-3 py-2 mb-3">
+                  <p className="text-xs font-semibold text-primary">
+                    Step {currentStepIndex + 1}: {currentStep.label}
+                  </p>
+                </div>
+                <h4 className="font-display font-semibold text-xs text-muted-foreground mb-1.5 uppercase tracking-wider">
+                  Form Tips
+                </h4>
+                <ul className="space-y-1">
+                  {animation.tips.map((tip, i) => (
+                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
+                      <span className="w-1 h-1 rounded-full bg-primary flex-shrink-0 mt-1.5" />
+                      {tip}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Step progress bar */}
+            <div className="mb-3">
+              <div className="flex gap-1">
+                {steps.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`h-1 rounded-full flex-1 transition-all duration-300 cursor-pointer ${
+                      i === currentStepIndex
+                        ? "bg-primary"
+                        : i < currentStepIndex
+                        ? "bg-primary/40"
+                        : "bg-muted"
+                    }`}
+                    onClick={() => handleStepClick(i)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Playback controls */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full h-8 w-8"
+                onClick={() => handleStepNav(-1)}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+
+              <Button
+                variant="gradient"
+                size="icon"
+                className="rounded-full h-10 w-10"
+                onClick={handlePlayPause}
+              >
+                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full h-8 w-8"
+                onClick={() => handleStepNav(1)}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1 border-border/50 ml-1"
+                onClick={handleReplay}
+              >
+                <RotateCcw className="w-3 h-3" />
+                Replay
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1 border-border/50"
+                onClick={handleSpeedCycle}
+              >
+                <Zap className="w-3 h-3" />
+                {SPEEDS[speedIndex].label}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
