@@ -2,20 +2,12 @@ import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { 
-  Dumbbell, 
-  Home, 
-  Building2, 
-  Clock, 
-  Flame, 
-  ChevronRight,
-  Play,
-  RefreshCw,
-  Info,
-  Sparkles,
-  Pause,
-  CheckCircle2
+  Dumbbell, Home, Building2, Clock, Flame, ChevronRight,
+  Play, RefreshCw, Sparkles, Pause, CheckCircle2, Eye, EyeOff
 } from "lucide-react";
 import { toast } from "sonner";
+import { ExerciseDemo } from "@/components/workouts/ExerciseDemo";
+
 type WorkoutType = "home" | "gym";
 
 interface Exercise {
@@ -50,12 +42,14 @@ const Workouts = () => {
   const [isWorkoutActive, setIsWorkoutActive] = useState(false);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [completedExercises, setCompletedExercises] = useState<number[]>([]);
+  const [expandedDemo, setExpandedDemo] = useState<number | null>(null);
   const exercises = workoutType === "home" ? homeWorkouts : gymWorkouts;
 
   const handleStartWorkout = () => {
     setIsWorkoutActive(true);
     setCurrentExerciseIndex(0);
     setCompletedExercises([]);
+    setExpandedDemo(0);
     toast.success("Workout started! Let's go! 💪");
   };
 
@@ -66,168 +60,187 @@ const Workouts = () => {
 
   const handleCompleteExercise = (index: number) => {
     if (!completedExercises.includes(index)) {
-      setCompletedExercises([...completedExercises, index]);
+      const updated = [...completedExercises, index];
+      setCompletedExercises(updated);
       if (index < exercises.length - 1) {
         setCurrentExerciseIndex(index + 1);
-        toast.success(`${exercises[index].name} completed! Next up: ${exercises[index + 1].name}`);
+        setExpandedDemo(index + 1);
+        toast.success(`${exercises[index].name} completed! Next: ${exercises[index + 1].name}`);
       } else {
         toast.success("🎉 Workout Complete! Great job!");
         setIsWorkoutActive(false);
+        setExpandedDemo(null);
       }
     }
   };
+
+  const toggleDemo = (index: number) => {
+    setExpandedDemo(expandedDemo === index ? null : index);
+  };
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="font-display font-bold text-3xl md:text-4xl mb-2">
-              Today's Workout
+            <h1 className="font-display font-extrabold text-3xl md:text-4xl mb-2 tracking-tight">
+              Today's <span className="gradient-text">Workout</span>
             </h1>
             <p className="text-muted-foreground">
-              AI-generated workout based on your profile and goals
+              AI-generated workout with real-time exercise demos
             </p>
           </div>
           <Button variant="gradient" className="gap-2">
             <RefreshCw className="w-4 h-4" />
-            Regenerate Workout
+            Regenerate
           </Button>
         </div>
 
-        {/* Workout Type Toggle */}
-        <div className="glass-card p-2 rounded-2xl inline-flex gap-2 mb-8">
+        {/* Type Toggle */}
+        <div className="glass-card p-1.5 rounded-xl inline-flex gap-1.5 mb-8">
           <button
-            onClick={() => setWorkoutType("home")}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
+            onClick={() => { setWorkoutType("home"); setCompletedExercises([]); setIsWorkoutActive(false); setExpandedDemo(null); }}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all duration-300 ${
               workoutType === "home"
-                ? "bg-primary text-primary-foreground"
+                ? "bg-primary text-primary-foreground neon-glow"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Home className="w-5 h-5" />
-            Home Workout
+            <Home className="w-4 h-4" />
+            Home
           </button>
           <button
-            onClick={() => setWorkoutType("gym")}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
+            onClick={() => { setWorkoutType("gym"); setCompletedExercises([]); setIsWorkoutActive(false); setExpandedDemo(null); }}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all duration-300 ${
               workoutType === "gym"
-                ? "bg-primary text-primary-foreground"
+                ? "bg-primary text-primary-foreground neon-glow"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Building2 className="w-5 h-5" />
-            Gym Workout
+            <Building2 className="w-4 h-4" />
+            Gym
           </button>
         </div>
 
-        {/* Workout Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="glass-card p-5 rounded-2xl text-center">
-            <Dumbbell className="w-6 h-6 text-primary mx-auto mb-2" />
-            <div className="font-display font-bold text-2xl">{exercises.length}</div>
-            <div className="text-sm text-muted-foreground">Exercises</div>
-          </div>
-          <div className="glass-card p-5 rounded-2xl text-center">
-            <Clock className="w-6 h-6 text-orange-400 mx-auto mb-2" />
-            <div className="font-display font-bold text-2xl">45</div>
-            <div className="text-sm text-muted-foreground">Minutes</div>
-          </div>
-          <div className="glass-card p-5 rounded-2xl text-center">
-            <Flame className="w-6 h-6 text-destructive mx-auto mb-2" />
-            <div className="font-display font-bold text-2xl">~350</div>
-            <div className="text-sm text-muted-foreground">Calories</div>
-          </div>
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3 mb-8">
+          {[
+            { icon: Dumbbell, value: exercises.length, label: "Exercises", color: "text-primary" },
+            { icon: Clock, value: "45", label: "Minutes", color: "text-accent" },
+            { icon: Flame, value: "~350", label: "Calories", color: "text-destructive" },
+          ].map((stat, i) => (
+            <div key={i} className="glass-card p-4 rounded-xl text-center neon-border">
+              <stat.icon className={`w-5 h-5 ${stat.color} mx-auto mb-1.5`} />
+              <div className="font-display font-bold text-xl tabular-nums">{stat.value}</div>
+              <div className="text-xs text-muted-foreground">{stat.label}</div>
+            </div>
+          ))}
         </div>
 
-        {/* AI Explanation */}
-        <div className="glass-card p-5 rounded-2xl mb-8 border-l-4 border-l-primary">
+        {/* AI Note */}
+        <div className="glass-card p-4 rounded-xl mb-8 border-l-2 border-l-primary">
           <div className="flex items-start gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Sparkles className="w-5 h-5 text-primary" />
-            </div>
+            <Sparkles className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
             <div>
-              <h3 className="font-semibold mb-1">Why AI Suggested This Workout</h3>
-              <p className="text-sm text-muted-foreground">
-                Based on your goal (muscle gain) and intermediate experience level, this workout 
-                focuses on compound movements for maximum muscle activation. The rest periods are 
-                optimized for hypertrophy, and exercise order prevents muscle fatigue interference.
+              <h3 className="font-semibold text-sm mb-1">AI Suggestion</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Tap the eye icon on any exercise to see the animated demo. During active workout mode, 
+                demos auto-open for the current exercise so you can follow along.
               </p>
             </div>
           </div>
         </div>
 
         {/* Exercise List */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {exercises.map((exercise, index) => {
             const isCompleted = completedExercises.includes(index);
             const isCurrent = isWorkoutActive && currentExerciseIndex === index;
+            const isDemoOpen = expandedDemo === index;
             
             return (
               <div
-                key={index}
-                className={`glass-card p-5 rounded-2xl group hover:-translate-y-1 transition-all duration-300 ${
-                  isCurrent ? "ring-2 ring-primary ring-offset-2" : ""
-                } ${isCompleted ? "opacity-60" : ""}`}
+                key={`${workoutType}-${index}`}
+                className={`glass-card rounded-xl overflow-hidden transition-all duration-300 ${
+                  isCurrent ? "ring-1 ring-primary/60 neon-glow" : ""
+                } ${isCompleted ? "opacity-50" : ""}`}
               >
-                <div className="flex items-center gap-4">
-                  {/* Exercise Number & Emoji */}
-                  <div className={`flex-shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center text-2xl ${
-                    isCompleted ? "bg-green-500/20" : "bg-secondary"
+                <div className="p-4 flex items-center gap-3">
+                  {/* Emoji / check */}
+                  <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-xl ${
+                    isCompleted ? "bg-accent/20" : "bg-secondary"
                   }`}>
-                    {isCompleted ? <CheckCircle2 className="w-8 h-8 text-green-500" /> : exercise.emoji}
+                    {isCompleted ? <CheckCircle2 className="w-6 h-6 text-accent" /> : exercise.emoji}
                   </div>
 
-                  {/* Exercise Info */}
-                  <div className="flex-1">
-                    <h3 className={`font-display font-semibold text-lg ${isCompleted ? "line-through" : ""}`}>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className={`font-display font-semibold text-base ${isCompleted ? "line-through text-muted-foreground" : ""}`}>
                       {exercise.name}
                     </h3>
-                    <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
                       <span>{exercise.sets} sets</span>
-                      <span>•</span>
+                      <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
                       <span>{exercise.reps} reps</span>
-                      <span>•</span>
+                      <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
                       <span>{exercise.rest} rest</span>
                     </div>
-                    <span className="inline-block mt-2 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                    <span className="inline-block mt-1.5 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
                       {exercise.muscle}
                     </span>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" className="rounded-full">
-                      <Info className="w-5 h-5" />
+                  <div className="flex items-center gap-1.5">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="rounded-full h-9 w-9"
+                      onClick={() => toggleDemo(index)}
+                    >
+                      {isDemoOpen ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </Button>
                     {isWorkoutActive && !isCompleted ? (
                       <Button 
                         variant="gradient" 
                         size="icon" 
-                        className="rounded-full"
+                        className="rounded-full h-9 w-9"
                         onClick={() => handleCompleteExercise(index)}
                       >
-                        <CheckCircle2 className="w-5 h-5" />
+                        <CheckCircle2 className="w-4 h-4" />
                       </Button>
                     ) : (
-                      <Button variant="gradient" size="icon" className="rounded-full">
-                        <Play className="w-5 h-5" />
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="rounded-full h-9 w-9 text-primary"
+                        onClick={() => { toggleDemo(index); }}
+                      >
+                        <Play className="w-4 h-4" />
                       </Button>
                     )}
                   </div>
                 </div>
+
+                {/* Demo panel */}
+                <ExerciseDemo
+                  exerciseName={exercise.name}
+                  muscle={exercise.muscle}
+                  isVisible={isDemoOpen}
+                />
               </div>
             );
           })}
         </div>
 
-        {/* Start/Pause Workout Button */}
+        {/* Bottom action */}
         <div className="fixed bottom-6 left-0 right-0 px-4 z-40 md:relative md:mt-8 md:px-0">
           {isWorkoutActive ? (
             <Button 
               variant="outline" 
               size="xl" 
-              className="w-full gap-2"
+              className="w-full gap-2 border-border/60"
               onClick={handlePauseWorkout}
             >
               <Pause className="w-5 h-5" />

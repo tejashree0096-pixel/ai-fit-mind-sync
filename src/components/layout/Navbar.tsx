@@ -30,11 +30,9 @@ export const Navbar = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
     });
-
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
@@ -47,19 +45,13 @@ export const Navbar = () => {
   const navLinks = user ? [...publicLinks, ...protectedLinks] : publicLinks;
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/70 backdrop-blur-xl border-b border-border/30">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
-          {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
-            <img 
-              src={logoImage} 
-              alt="AI Fitness Arena" 
-              className="h-12 md:h-14 w-auto object-contain"
-            />
+            <img src={logoImage} alt="AI Fitness Arena" className="h-12 md:h-14 w-auto object-contain" />
           </Link>
 
-          {/* Desktop Nav */}
           <div className="hidden lg:flex items-center gap-1">
             {navLinks.map((link) => (
               <Link
@@ -76,10 +68,9 @@ export const Navbar = () => {
             ))}
           </div>
 
-          {/* CTA Buttons */}
           <div className="hidden md:flex items-center gap-3">
             {user ? (
-              <Button variant="outline" onClick={handleLogout} className="gap-2">
+              <Button variant="outline" onClick={handleLogout} className="gap-2 border-border/60">
                 <LogOut className="w-4 h-4" />
                 Logout
               </Button>
@@ -93,18 +84,13 @@ export const Navbar = () => {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="lg:hidden p-2 rounded-lg hover:bg-secondary transition-colors"
-          >
+          <button onClick={() => setIsOpen(!isOpen)} className="lg:hidden p-2 rounded-lg hover:bg-secondary transition-colors">
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
 
-        {/* Mobile Nav */}
         {isOpen && (
-          <div className="lg:hidden py-4 border-t border-border/50 animate-fade-in">
+          <div className="lg:hidden py-4 border-t border-border/30 animate-fade-in">
             <div className="flex flex-col gap-2">
               {navLinks.map((link) => (
                 <Link
@@ -121,7 +107,7 @@ export const Navbar = () => {
                 </Link>
               ))}
               {user ? (
-                <Button variant="outline" onClick={handleLogout} className="w-full mt-2 gap-2">
+                <Button variant="outline" onClick={handleLogout} className="w-full mt-2 gap-2 border-border/60">
                   <LogOut className="w-4 h-4" />
                   Logout
                 </Button>
