@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
   Play, Pause, RotateCcw, ChevronLeft, ChevronRight, Zap,
-  Volume2, VolumeX, Mic, MicOff
+  Volume2, VolumeX, Mic, MicOff, Snail, Rabbit
 } from "lucide-react";
 import { HumanFigure } from "./HumanFigure";
 import { exerciseAnimationData, defaultAnimation } from "./exerciseAnimationData";
@@ -23,6 +23,8 @@ const SPEEDS = [
   { label: "2×", value: 2 },
 ];
 
+type CoachingPace = "normal" | "slow";
+
 export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -31,25 +33,37 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
   const [showStepView, setShowStepView] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [voiceVolume, setVoiceVolume] = useState(0.8);
+  const [coachingPace, setCoachingPace] = useState<CoachingPace>("normal");
+  const [repCount, setRepCount] = useState(0);
   const animationRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
   const holdTimeRef = useRef<number>(0);
   const lastSpokenStepRef = useRef<number>(-1);
   const hasSpokenIntroRef = useRef(false);
+  const waitingForSpeechRef = useRef(false);
+  const repCountRef = useRef(0);
 
   const animation = exerciseAnimationData[exerciseName] || defaultAnimation;
   const coaching = voiceCoachingData[exerciseName] || defaultVoiceCoaching;
   const steps = animation.steps;
   const speed = SPEEDS[speedIndex].value;
 
+  const paceMultiplier = coachingPace === "slow" ? 1.8 : 1;
+
+  const onSpeechEnd = useCallback(() => {
+    waitingForSpeechRef.current = false;
+  }, []);
+
   const { speak, speakStep, stop: stopVoice, isSpeaking, isSupported } = useVoiceCoach({
     enabled: voiceEnabled,
     volume: voiceVolume,
-    rate: speed > 1.5 ? 1.0 : speed < 0.75 ? 0.65 : 0.8,
+    rate: coachingPace === "slow" ? 0.6 : (speed > 1.5 ? 0.9 : 0.75),
+    onSpeechEnd,
   });
 
-  const TRANSITION_DURATION = 800 / speed;
-  const HOLD_DURATION = 400 / speed;
+  // Base durations scaled by pace
+  const TRANSITION_DURATION = (1000 * paceMultiplier) / speed;
+  const HOLD_DURATION = (800 * paceMultiplier) / speed;
 
   const stopAnimation = useCallback(() => {
     if (animationRef.current) {
@@ -64,23 +78,58 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
     if (currentStepIndex === lastSpokenStepRef.current) return;
 
     lastSpokenStepRef.current = currentStepIndex;
-    const coachStep = coaching.steps[currentStepIndex % coaching.steps.length];
-    if (coachStep) {
-      speakStep(coachStep.instruction, coachStep.muscleCue, coachStep.breathingCue);
+
+    // Track reps (when we cycle back to step 0)
+    if (currentStepIndex === 0 && repCountRef.current > 0) {
+      repCountRef.current += 1;
+      setRepCount(repCountRef.current);
+    } else if (currentStepIndex === 0 && repCountRef.current === 0) {
+      repCountRef.current = 1;
+      setRepCount(1);
     }
 
-    // Add encouragement at halfway and near end
-    const halfway = Math.floor(steps.length / 2);
-    const nearEnd = steps.length - 1;
-    if (currentStepIndex === halfway || currentStepIndex === nearEnd) {
-      const encouragement = coaching.encouragement[Math.floor(Math.random() * coaching.encouragement.length)];
-      speak(encouragement);
+    const isFirstRep = repCountRef.current <= 1;
+    const coachStep = coaching.steps[currentStepIndex % coaching.steps.length];
+
+    if (coachStep) {
+      if (isFirstRep) {
+        // Full detailed guidance on first rep
+        waitingForSpeechRef.current = true;
+
+        // Include hold cue if present
+        const instruction = coachStep.holdCue 
+          ? `${coachStep.instruction} ${coachStep.holdCue}`
+          : coachStep.instruction;
+        
+        speakStep(instruction, coachStep.muscleCue, coachStep.breathingCue);
+      } else {
+        // Short cues for subsequent reps
+        const repCue = coaching.repCues[currentStepIndex % coaching.repCues.length];
+        speakStep(repCue, undefined, undefined, true);
+      }
+    }
+
+    // Add encouragement at halfway and near end of first rep
+    if (isFirstRep) {
+      const halfway = Math.floor(steps.length / 2);
+      const nearEnd = steps.length - 1;
+      if (currentStepIndex === halfway || currentStepIndex === nearEnd) {
+        const encouragement = coaching.encouragement[Math.floor(Math.random() * coaching.encouragement.length)];
+        speak(encouragement, false, 1000);
+      }
     }
   }, [currentStepIndex, isPlaying, voiceEnabled, coaching, speakStep, speak, steps.length]);
 
   const animate = useCallback((timestamp: number) => {
     if (!lastTimeRef.current) lastTimeRef.current = timestamp;
     const delta = timestamp - lastTimeRef.current;
+
+    // If voice is speaking and we're in "wait for speech" mode, pause animation
+    if (waitingForSpeechRef.current && voiceEnabled) {
+      lastTimeRef.current = timestamp;
+      animationRef.current = requestAnimationFrame(animate);
+      return;
+    }
 
     if (holdTimeRef.current > 0) {
       holdTimeRef.current -= delta;
@@ -104,7 +153,7 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
 
     lastTimeRef.current = timestamp;
     animationRef.current = requestAnimationFrame(animate);
-  }, [steps.length, TRANSITION_DURATION, HOLD_DURATION]);
+  }, [steps.length, TRANSITION_DURATION, HOLD_DURATION, voiceEnabled]);
 
   useEffect(() => {
     if (isPlaying && isVisible) {
@@ -121,27 +170,30 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
       setIsPlaying(false);
       setCurrentStepIndex(0);
       setInterpolationProgress(1);
+      setRepCount(0);
+      repCountRef.current = 0;
       stopAnimation();
       stopVoice();
       lastSpokenStepRef.current = -1;
       hasSpokenIntroRef.current = false;
+      waitingForSpeechRef.current = false;
     }
   }, [isVisible, stopAnimation, stopVoice]);
 
   const handlePlayPause = () => {
     if (!isPlaying) {
-      // Speak intro on first play
       if (!hasSpokenIntroRef.current && voiceEnabled) {
-        speak(coaching.intro, true);
-        // Then speak muscle target
-        speak(coaching.muscleTarget);
+        speak(coaching.intro, true, 2000);
+        speak(coaching.muscleTarget, false, 1500);
         hasSpokenIntroRef.current = true;
-        lastSpokenStepRef.current = -1; // Force re-speak of step 0
+        lastSpokenStepRef.current = -1;
+        waitingForSpeechRef.current = true;
       }
       setIsPlaying(true);
     } else {
       setIsPlaying(false);
       stopVoice();
+      waitingForSpeechRef.current = false;
     }
   };
 
@@ -150,16 +202,20 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
     stopVoice();
     setCurrentStepIndex(0);
     setInterpolationProgress(1);
+    setRepCount(0);
+    repCountRef.current = 0;
     holdTimeRef.current = 0;
     lastTimeRef.current = 0;
     lastSpokenStepRef.current = -1;
     hasSpokenIntroRef.current = false;
+    waitingForSpeechRef.current = false;
     setIsPlaying(true);
 
     if (voiceEnabled) {
-      speak(coaching.intro, true);
-      speak(coaching.muscleTarget);
+      speak(coaching.intro, true, 2000);
+      speak(coaching.muscleTarget, false, 1500);
       hasSpokenIntroRef.current = true;
+      waitingForSpeechRef.current = true;
     }
   };
 
@@ -167,6 +223,7 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
     setIsPlaying(false);
     stopAnimation();
     stopVoice();
+    waitingForSpeechRef.current = false;
     const newIndex = (() => {
       const next = currentStepIndex + direction;
       if (next < 0) return steps.length - 1;
@@ -176,11 +233,13 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
     setCurrentStepIndex(newIndex);
     setInterpolationProgress(1);
 
-    // Speak the step instruction on manual navigation
     if (voiceEnabled) {
       const coachStep = coaching.steps[newIndex % coaching.steps.length];
       if (coachStep) {
-        speakStep(coachStep.instruction, coachStep.muscleCue, coachStep.breathingCue);
+        const instruction = coachStep.holdCue 
+          ? `${coachStep.instruction} ${coachStep.holdCue}`
+          : coachStep.instruction;
+        speakStep(instruction, coachStep.muscleCue, coachStep.breathingCue);
       }
     }
     lastSpokenStepRef.current = newIndex;
@@ -194,13 +253,17 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
     setIsPlaying(false);
     stopAnimation();
     stopVoice();
+    waitingForSpeechRef.current = false;
     setCurrentStepIndex(index);
     setInterpolationProgress(1);
 
     if (voiceEnabled) {
       const coachStep = coaching.steps[index % coaching.steps.length];
       if (coachStep) {
-        speakStep(coachStep.instruction, coachStep.muscleCue, coachStep.breathingCue);
+        const instruction = coachStep.holdCue 
+          ? `${coachStep.instruction} ${coachStep.holdCue}`
+          : coachStep.instruction;
+        speakStep(instruction, coachStep.muscleCue, coachStep.breathingCue);
       }
     }
     lastSpokenStepRef.current = index;
@@ -209,8 +272,13 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
   const handleVoiceToggle = () => {
     if (voiceEnabled) {
       stopVoice();
+      waitingForSpeechRef.current = false;
     }
     setVoiceEnabled(!voiceEnabled);
+  };
+
+  const handlePaceToggle = () => {
+    setCoachingPace(prev => prev === "normal" ? "slow" : "normal");
   };
 
   if (!isVisible) return null;
@@ -240,6 +308,11 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
               }`}>
                 {animation.difficulty}
               </span>
+              {repCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-accent/15 text-accent text-[10px] font-semibold">
+                  Rep {repCount}
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -288,6 +361,13 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
                   ))}
                 </div>
                 <span className="text-[9px] font-semibold text-accent ml-0.5">Coach</span>
+              </div>
+            )}
+
+            {/* Waiting indicator - animation paused for speech */}
+            {waitingForSpeechRef.current && isPlaying && voiceEnabled && (
+              <div className="absolute bottom-2 right-2 text-[9px] font-mono text-accent bg-accent/10 px-2 py-0.5 rounded-md border border-accent/20">
+                Listening...
               </div>
             )}
 
@@ -344,6 +424,13 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
                         {currentCoachStep.instruction}
                       </p>
                     </div>
+                    {currentCoachStep.holdCue && (
+                      <div className="flex items-start gap-2 pl-5">
+                        <span className="text-[10px] text-accent/70 leading-relaxed italic">
+                          ⏸ {currentCoachStep.holdCue}
+                        </span>
+                      </div>
+                    )}
                     {currentCoachStep.muscleCue && (
                       <div className="flex items-start gap-2 pl-5">
                         <span className="text-[10px] text-accent/80 leading-relaxed">
@@ -411,6 +498,18 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
               <div className="flex items-center gap-1.5 ml-auto">
                 {isSupported && (
                   <>
+                    {/* Coaching pace toggle */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={`h-8 text-xs gap-1 border-border/50 ${coachingPace === "slow" ? "bg-accent/15 border-accent/30 text-accent" : ""}`}
+                      onClick={handlePaceToggle}
+                      title={coachingPace === "slow" ? "Switch to normal pace" : "Switch to slow coaching mode"}
+                    >
+                      {coachingPace === "slow" ? <Snail className="w-3 h-3" /> : <Rabbit className="w-3 h-3" />}
+                      {coachingPace === "slow" ? "Slow" : "Normal"}
+                    </Button>
+
                     <Button
                       variant={voiceEnabled ? "default" : "outline"}
                       size="icon"
