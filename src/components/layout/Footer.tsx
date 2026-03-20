@@ -4,45 +4,31 @@ import logoImage from "@/assets/logo.png";
 
 export const Footer = () => {
   return (
-    <footer className="bg-card/50 border-t border-border/50 mt-auto">
+    <footer className="bg-card/30 border-t border-border/30 mt-auto">
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Brand */}
           <div className="md:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <img 
-                src={logoImage} 
-                alt="AI Fitness Arena" 
-                className="h-16 w-auto object-contain"
-              />
+              <img src={logoImage} alt="AI Fitness Arena" className="h-16 w-auto object-contain" />
             </Link>
             <p className="text-muted-foreground text-sm leading-relaxed max-w-md">
-              Your AI-powered fitness companion. Personalized workouts, smart nutrition tracking, 
-              and adaptive coaching to help you achieve your fitness goals.
+              Your AI-powered fitness companion. Personalized workouts with real-time demos, 
+              smart nutrition tracking, and adaptive coaching.
             </p>
-            <div className="flex gap-4 mt-6">
-              <a href="#" className="p-2 rounded-lg bg-secondary hover:bg-primary/20 transition-colors">
-                <Github className="w-5 h-5" />
-              </a>
-              <a href="#" className="p-2 rounded-lg bg-secondary hover:bg-primary/20 transition-colors">
-                <Linkedin className="w-5 h-5" />
-              </a>
-              <a href="#" className="p-2 rounded-lg bg-secondary hover:bg-primary/20 transition-colors">
-                <Mail className="w-5 h-5" />
-              </a>
+            <div className="flex gap-3 mt-6">
+              {[Github, Linkedin, Mail].map((Icon, i) => (
+                <a key={i} href="#" className="p-2 rounded-lg bg-secondary hover:bg-primary/20 transition-colors neon-border">
+                  <Icon className="w-4 h-4" />
+                </a>
+              ))}
             </div>
           </div>
-
-          {/* Quick Links */}
           <div>
             <h4 className="font-display font-semibold text-foreground mb-4">Quick Links</h4>
             <ul className="space-y-3">
               {["Dashboard", "Workouts", "Nutrition", "AI Coach", "Progress"].map((item) => (
                 <li key={item}>
-                  <Link 
-                    to={`/${item.toLowerCase().replace(" ", "-")}`}
-                    className="text-muted-foreground hover:text-primary transition-colors text-sm"
-                  >
+                  <Link to={`/${item.toLowerCase().replace(" ", "-")}`} className="text-muted-foreground hover:text-primary transition-colors text-sm">
                     {item}
                   </Link>
                 </li>
@@ -50,15 +36,11 @@ export const Footer = () => {
             </ul>
           </div>
         </div>
-
-        {/* Bottom Bar */}
-        <div className="mt-12 pt-8 border-t border-border/50 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground text-center md:text-left">
+        <div className="mt-12 pt-8 border-t border-border/30 flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-muted-foreground">
             © 2024 AI Fitness Arena. Built with <Heart className="w-4 h-4 inline text-destructive" />
           </p>
-          <p className="text-sm text-muted-foreground">
-            Powered by AI • React • TypeScript
-          </p>
+          <p className="text-sm text-muted-foreground">Powered by AI • React • TypeScript</p>
         </div>
       </div>
     </footer>
