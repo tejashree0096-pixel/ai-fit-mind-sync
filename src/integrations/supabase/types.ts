@@ -14,6 +14,114 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          active_minutes: number | null
+          calories_burned: number | null
+          created_at: string
+          id: string
+          log_date: string
+          notes: string | null
+          sleep_hours: number | null
+          steps: number | null
+          updated_at: string
+          user_id: string
+          water_glasses: number | null
+        }
+        Insert: {
+          active_minutes?: number | null
+          calories_burned?: number | null
+          created_at?: string
+          id?: string
+          log_date?: string
+          notes?: string | null
+          sleep_hours?: number | null
+          steps?: number | null
+          updated_at?: string
+          user_id: string
+          water_glasses?: number | null
+        }
+        Update: {
+          active_minutes?: number | null
+          calories_burned?: number | null
+          created_at?: string
+          id?: string
+          log_date?: string
+          notes?: string | null
+          sleep_hours?: number | null
+          steps?: number | null
+          updated_at?: string
+          user_id?: string
+          water_glasses?: number | null
+        }
+        Relationships: []
+      }
+      ai_workout_plans: {
+        Row: {
+          ai_notes: string | null
+          created_at: string
+          difficulty: string
+          duration_minutes: number | null
+          exercises: Json
+          id: string
+          plan_name: string
+          plan_type: string
+          target_muscles: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_notes?: string | null
+          created_at?: string
+          difficulty?: string
+          duration_minutes?: number | null
+          exercises?: Json
+          id?: string
+          plan_name: string
+          plan_type?: string
+          target_muscles?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_notes?: string | null
+          created_at?: string
+          difficulty?: string
+          duration_minutes?: number | null
+          exercises?: Json
+          id?: string
+          plan_name?: string
+          plan_type?: string
+          target_muscles?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       nutrition_logs: {
         Row: {
           calories: number | null
@@ -95,6 +203,45 @@ export type Database = {
           updated_at?: string
           user_id?: string
           weight?: number | null
+        }
+        Relationships: []
+      }
+      reminders: {
+        Row: {
+          created_at: string
+          days_of_week: string[] | null
+          id: string
+          is_active: boolean | null
+          message: string | null
+          reminder_time: string
+          reminder_type: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          days_of_week?: string[] | null
+          id?: string
+          is_active?: boolean | null
+          message?: string | null
+          reminder_time: string
+          reminder_type?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          days_of_week?: string[] | null
+          id?: string
+          is_active?: boolean | null
+          message?: string | null
+          reminder_time?: string
+          reminder_type?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
