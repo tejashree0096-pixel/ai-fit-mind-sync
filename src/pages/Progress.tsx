@@ -1,84 +1,115 @@
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
+import { supabase } from "@/integrations/supabase/client";
+import { useActivityTracker } from "@/hooks/useActivityTracker";
 import { 
-  TrendingUp, 
-  TrendingDown,
-  Scale,
-  Dumbbell,
-  Apple,
-  Target,
-  Calendar,
-  Award,
-  Flame,
-  Sparkles
+  TrendingUp, TrendingDown, Scale, Dumbbell, Apple, Target,
+  Award, Flame, Sparkles, Calendar, BarChart3
 } from "lucide-react";
 import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  AreaChart,
-  Area
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, LineChart, Line
 } from "recharts";
 
-const weightData = [
-  { week: "W1", weight: 75 },
-  { week: "W2", weight: 74.5 },
-  { week: "W3", weight: 74.2 },
-  { week: "W4", weight: 73.8 },
-  { week: "W5", weight: 73.5 },
-  { week: "W6", weight: 73.1 },
-  { week: "W7", weight: 72.8 },
-  { week: "W8", weight: 72.5 },
-];
-
-const workoutData = [
-  { day: "Mon", completed: 1 },
-  { day: "Tue", completed: 1 },
-  { day: "Wed", completed: 0 },
-  { day: "Thu", completed: 1 },
-  { day: "Fri", completed: 1 },
-  { day: "Sat", completed: 1 },
-  { day: "Sun", completed: 0 },
-];
-
 const Progress = () => {
-  const totalWorkouts = workoutData.reduce((sum, d) => sum + d.completed, 0);
-  const consistencyScore = Math.round((totalWorkouts / 7) * 100);
+  const { weeklyData } = useActivityTracker();
+  const [workoutHistory, setWorkoutHistory] = useState<any[]>([]);
+  const [nutritionHistory, setNutritionHistory] = useState<any[]>([]);
+  const [profileWeight, setProfileWeight] = useState<number>(75);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fetch workout history
+      const { data: workouts } = await supabase
+        .from("workout_history")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("workout_date", { ascending: true })
+        .limit(30);
+      if (workouts) setWorkoutHistory(workouts);
+
+      // Fetch nutrition history
+      const { data: nutrition } = await supabase
+        .from("nutrition_logs")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("log_date", { ascending: true })
+        .limit(30);
+      if (nutrition) setNutritionHistory(nutrition);
+
+      // Profile
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("weight")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (profile?.weight) setProfileWeight(Number(profile.weight));
+    };
+    fetchData();
+  }, []);
+
+  // Compute stats
+  const totalWorkouts = workoutHistory.length;
+  const totalCalories = weeklyData.reduce((sum, d) => sum + d.calories_burned, 0);
+  const avgSteps = weeklyData.length > 0 ? Math.round(weeklyData.reduce((s, d) => s + d.steps, 0) / weeklyData.length) : 0;
+  const streak = weeklyData.filter(d => d.active_minutes > 0).length;
+
+  // Charts data
+  const activityChartData = weeklyData.map(d => ({
+    date: new Date(d.log_date).toLocaleDateString("en", { weekday: "short" }),
+    steps: d.steps,
+    calories: d.calories_burned,
+    active: d.active_minutes,
+  }));
+
+  const workoutChartData = (() => {
+    const byDate: Record<string, number> = {};
+    workoutHistory.forEach(w => {
+      const d = new Date(w.workout_date).toLocaleDateString("en", { month: "short", day: "numeric" });
+      byDate[d] = (byDate[d] || 0) + (w.duration_minutes || 0);
+    });
+    return Object.entries(byDate).map(([date, minutes]) => ({ date, minutes }));
+  })();
+
+  const nutritionChartData = (() => {
+    const byDate: Record<string, { calories: number; protein: number; count: number }> = {};
+    nutritionHistory.forEach(n => {
+      const d = new Date(n.log_date).toLocaleDateString("en", { month: "short", day: "numeric" });
+      if (!byDate[d]) byDate[d] = { calories: 0, protein: 0, count: 0 };
+      byDate[d].calories += n.calories || 0;
+      byDate[d].protein += Number(n.protein) || 0;
+      byDate[d].count++;
+    });
+    return Object.entries(byDate).map(([date, v]) => ({ date, ...v }));
+  })();
 
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="font-display font-bold text-3xl md:text-4xl mb-2">
             Progress Analytics
           </h1>
-          <p className="text-muted-foreground">
-            AI-powered insights into your fitness journey
-          </p>
+          <p className="text-muted-foreground">AI-powered insights from your real data</p>
         </div>
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
-            { icon: Scale, label: "Weight Lost", value: "-2.5 kg", trend: "down", color: "text-emerald-400" },
-            { icon: Dumbbell, label: "Workouts", value: "28", trend: "up", color: "text-cyan-400" },
-            { icon: Flame, label: "Streak", value: "12 days", trend: "up", color: "text-orange-400" },
-            { icon: Target, label: "Goal Progress", value: "68%", trend: "up", color: "text-violet-400" },
+            { icon: Dumbbell, label: "Workouts", value: totalWorkouts.toString(), trend: "up", color: "text-cyan-400" },
+            { icon: Flame, label: "Calories Burned", value: totalCalories.toLocaleString(), trend: "up", color: "text-orange-400" },
+            { icon: Target, label: "Avg Steps", value: avgSteps.toLocaleString(), trend: "up", color: "text-emerald-400" },
+            { icon: Award, label: "Active Days", value: `${streak}/7`, trend: "up", color: "text-violet-400" },
           ].map((stat, index) => (
             <div key={index} className="glass-card p-5 rounded-2xl">
               <div className="flex items-center justify-between mb-3">
                 <div className={`p-2 rounded-lg ${stat.color.replace("text-", "bg-")}/10`}>
                   <stat.icon className={`w-5 h-5 ${stat.color}`} />
                 </div>
-                {stat.trend === "up" ? (
-                  <TrendingUp className="w-5 h-5 text-emerald-400" />
-                ) : (
-                  <TrendingDown className="w-5 h-5 text-emerald-400" />
-                )}
+                <TrendingUp className="w-5 h-5 text-emerald-400" />
               </div>
               <div className="font-display font-bold text-2xl mb-1">{stat.value}</div>
               <div className="text-sm text-muted-foreground">{stat.label}</div>
@@ -86,163 +117,135 @@ const Progress = () => {
           ))}
         </div>
 
-        {/* Weight Trend Chart */}
-        <div className="glass-card p-6 rounded-2xl mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="font-display font-semibold text-lg">Weight Trend</h2>
-              <p className="text-sm text-muted-foreground">Last 8 weeks progress</p>
-            </div>
-            <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium">
-              <TrendingDown className="w-4 h-4" />
-              -2.5 kg
+        {/* Activity Chart */}
+        {activityChartData.length > 0 && (
+          <div className="glass-card p-6 rounded-2xl mb-8">
+            <h2 className="font-display font-semibold text-lg mb-1">Weekly Activity</h2>
+            <p className="text-sm text-muted-foreground mb-4">Steps & calories this week</p>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={activityChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
+                  <XAxis dataKey="date" stroke="hsl(215 20% 65%)" />
+                  <YAxis stroke="hsl(215 20% 65%)" />
+                  <Tooltip contentStyle={{ backgroundColor: "hsl(222 47% 8%)", border: "1px solid hsl(222 30% 18%)", borderRadius: "12px" }} />
+                  <Bar dataKey="steps" fill="hsl(175 70% 40%)" radius={[4, 4, 0, 0]} name="Steps" />
+                  <Bar dataKey="calories" fill="hsl(25 100% 55%)" radius={[4, 4, 0, 0]} name="Calories" />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={weightData}>
-                <defs>
-                  <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(187 100% 50%)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(187 100% 50%)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
-                <XAxis dataKey="week" stroke="hsl(215 20% 65%)" />
-                <YAxis domain={[70, 76]} stroke="hsl(215 20% 65%)" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(222 47% 8%)",
-                    border: "1px solid hsl(222 30% 18%)",
-                    borderRadius: "12px",
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="weight"
-                  stroke="hsl(187 100% 50%)"
-                  strokeWidth={3}
-                  fill="url(#colorWeight)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        )}
 
-        {/* Consistency & Nutrition Grid */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
-          {/* Workout Consistency */}
+          {/* Workout Duration Chart */}
           <div className="glass-card p-6 rounded-2xl">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="font-display font-semibold text-lg">Weekly Consistency</h2>
-                <p className="text-sm text-muted-foreground">This week's workouts</p>
-              </div>
-              <div className="text-2xl font-display font-bold text-primary">
-                {consistencyScore}%
-              </div>
-            </div>
-            <div className="flex justify-between gap-2">
-              {workoutData.map((day, index) => (
-                <div key={index} className="text-center flex-1">
-                  <div
-                    className={`h-20 rounded-xl mb-2 flex items-end justify-center transition-all ${
-                      day.completed
-                        ? "bg-gradient-to-t from-primary to-primary/50"
-                        : "bg-secondary"
-                    }`}
-                  >
-                    {day.completed ? (
-                      <Dumbbell className="w-5 h-5 text-primary-foreground mb-2" />
-                    ) : null}
-                  </div>
-                  <span className="text-xs text-muted-foreground">{day.day}</span>
+            <h2 className="font-display font-semibold text-lg mb-1">Workout Duration</h2>
+            <p className="text-sm text-muted-foreground mb-4">Minutes per session</p>
+            <div className="h-48">
+              {workoutChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={workoutChartData}>
+                    <defs>
+                      <linearGradient id="colorMin" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(199 89% 48%)" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(199 89% 48%)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
+                    <XAxis dataKey="date" stroke="hsl(215 20% 65%)" fontSize={12} />
+                    <YAxis stroke="hsl(215 20% 65%)" fontSize={12} />
+                    <Tooltip contentStyle={{ backgroundColor: "hsl(222 47% 8%)", border: "1px solid hsl(222 30% 18%)", borderRadius: "12px" }} />
+                    <Area type="monotone" dataKey="minutes" stroke="hsl(199 89% 48%)" strokeWidth={2} fill="url(#colorMin)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                  Complete workouts to see your duration trends
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
-          {/* Nutrition Score */}
+          {/* Nutrition Chart */}
           <div className="glass-card p-6 rounded-2xl">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="font-display font-semibold text-lg">Nutrition Score</h2>
-                <p className="text-sm text-muted-foreground">Weekly average</p>
-              </div>
-              <Apple className="w-6 h-6 text-orange-400" />
-            </div>
-            <div className="space-y-4">
-              {[
-                { label: "Protein Goal", value: 72, color: "bg-red-400" },
-                { label: "Calorie Target", value: 85, color: "bg-orange-400" },
-                { label: "Hydration", value: 90, color: "bg-cyan-400" },
-                { label: "Meal Timing", value: 65, color: "bg-violet-400" },
-              ].map((item, index) => (
-                <div key={index}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm">{item.label}</span>
-                    <span className="text-sm font-medium">{item.value}%</span>
-                  </div>
-                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${item.color} rounded-full`}
-                      style={{ width: `${item.value}%` }}
-                    />
-                  </div>
+            <h2 className="font-display font-semibold text-lg mb-1">Nutrition Tracking</h2>
+            <p className="text-sm text-muted-foreground mb-4">Calorie & protein intake</p>
+            <div className="h-48">
+              {nutritionChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={nutritionChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 30% 18%)" />
+                    <XAxis dataKey="date" stroke="hsl(215 20% 65%)" fontSize={12} />
+                    <YAxis stroke="hsl(215 20% 65%)" fontSize={12} />
+                    <Tooltip contentStyle={{ backgroundColor: "hsl(222 47% 8%)", border: "1px solid hsl(222 30% 18%)", borderRadius: "12px" }} />
+                    <Line type="monotone" dataKey="calories" stroke="hsl(25 100% 55%)" strokeWidth={2} name="Calories" />
+                    <Line type="monotone" dataKey="protein" stroke="hsl(175 70% 40%)" strokeWidth={2} name="Protein (g)" />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                  Log meals to see nutrition trends
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
 
-        {/* AI Weekly Report */}
-        <div className="glass-card p-6 rounded-2xl border-l-4 border-l-primary">
+        {/* AI Insights */}
+        <div className="glass-card p-6 rounded-2xl border-l-4 border-l-primary mb-8">
           <div className="flex items-start gap-4">
             <div className="p-3 rounded-xl bg-primary/10">
               <Sparkles className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h3 className="font-display font-semibold text-lg mb-2">AI Weekly Report</h3>
+              <h3 className="font-display font-semibold text-lg mb-2">AI Insights</h3>
               <p className="text-muted-foreground leading-relaxed mb-4">
-                Great progress this week! You've maintained a 71% workout consistency and lost 0.3kg. 
-                Your protein intake improved by 15% compared to last week. 
-              </p>
-              <p className="text-muted-foreground leading-relaxed mb-4">
-                <strong className="text-foreground">Areas to improve:</strong> You missed Wednesday's 
-                recovery session. Adding mobility work can help prevent injuries and improve performance.
+                {totalWorkouts > 0
+                  ? `You've completed ${totalWorkouts} workouts. ${streak >= 5 ? "Amazing consistency!" : "Try to maintain at least 5 active days per week."} `
+                  : "Start logging workouts to get personalized insights! "}
+                {avgSteps > 8000
+                  ? "Your step count is great — keep it up! "
+                  : avgSteps > 0
+                  ? `Averaging ${avgSteps} steps/day. Try aiming for 10,000 for optimal health. `
+                  : ""}
+                {totalCalories > 0
+                  ? `You've burned ${totalCalories.toLocaleString()} calories this week through tracked activities.`
+                  : "Track your daily activity to see calorie burn data."}
               </p>
               <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1 rounded-full bg-emerald-400/10 text-emerald-400 text-sm font-medium">
-                  ✓ On Track
-                </span>
-                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
-                  68% to Goal
-                </span>
-                <span className="px-3 py-1 rounded-full bg-orange-400/10 text-orange-400 text-sm font-medium">
-                  Focus: Protein
-                </span>
+                {streak >= 5 && (
+                  <span className="px-3 py-1 rounded-full bg-emerald-400/10 text-emerald-400 text-sm font-medium">✓ Consistent</span>
+                )}
+                {avgSteps > 8000 && (
+                  <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">🚶 Active Walker</span>
+                )}
+                {totalWorkouts > 10 && (
+                  <span className="px-3 py-1 rounded-full bg-orange-400/10 text-orange-400 text-sm font-medium">🏆 Dedicated</span>
+                )}
               </div>
             </div>
           </div>
         </div>
 
         {/* Achievements */}
-        <div className="mt-8">
+        <div>
           <h2 className="font-display font-semibold text-lg mb-4 flex items-center gap-2">
             <Award className="w-5 h-5 text-amber-400" />
-            Recent Achievements
+            Achievements
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { title: "First Week", desc: "Completed first week", emoji: "🎉" },
-              { title: "Protein Pro", desc: "Hit protein 5 days", emoji: "💪" },
-              { title: "Early Bird", desc: "Morning workout streak", emoji: "🌅" },
-              { title: "Hydration Hero", desc: "8 glasses daily", emoji: "💧" },
+              { title: "First Workout", desc: "Complete your first workout", emoji: "🎉", unlocked: totalWorkouts >= 1 },
+              { title: "Week Warrior", desc: "5 active days in a week", emoji: "💪", unlocked: streak >= 5 },
+              { title: "Step Master", desc: "10k steps in a day", emoji: "🚶", unlocked: weeklyData.some(d => d.steps >= 10000) },
+              { title: "Hydration Hero", desc: "8 glasses daily", emoji: "💧", unlocked: weeklyData.some(d => d.water_glasses >= 8) },
             ].map((badge, index) => (
-              <div key={index} className="glass-card p-4 rounded-2xl text-center">
+              <div key={index} className={`glass-card p-4 rounded-2xl text-center ${!badge.unlocked ? "opacity-40" : ""}`}>
                 <div className="text-3xl mb-2">{badge.emoji}</div>
                 <div className="font-semibold text-sm">{badge.title}</div>
                 <div className="text-xs text-muted-foreground">{badge.desc}</div>
+                {badge.unlocked && <div className="text-xs text-emerald-400 mt-1">✓ Unlocked</div>}
               </div>
             ))}
           </div>
