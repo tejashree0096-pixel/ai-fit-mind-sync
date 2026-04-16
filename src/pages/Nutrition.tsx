@@ -240,7 +240,20 @@ const Nutrition = () => {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        // Wait for video to actually have frame data before allowing capture
+        await new Promise<void>((resolve) => {
+          const video = videoRef.current!;
+          const onReady = () => {
+            video.removeEventListener('loadeddata', onReady);
+            resolve();
+          };
+          if (video.readyState >= 2) {
+            resolve();
+          } else {
+            video.addEventListener('loadeddata', onReady);
+          }
+          video.play();
+        });
       }
       setCameraActive(true);
     } catch (error: any) {
