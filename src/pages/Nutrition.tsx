@@ -915,7 +915,7 @@ const Nutrition = () => {
       </div>
 
       {/* Scan Food Dialog */}
-      <Dialog open={scanDialogOpen} onOpenChange={setScanDialogOpen}>
+      <Dialog open={scanDialogOpen} onOpenChange={handleScanDialogClose}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -923,28 +923,137 @@ const Nutrition = () => {
               Scan Food
             </DialogTitle>
             <DialogDescription>
-              Use your camera to scan and analyze food
+              Use your camera to scan and analyze food with AI
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col items-center gap-4 py-6">
-            <div className="w-full aspect-video bg-gradient-to-br from-teal-500/10 to-blue-500/10 rounded-xl flex items-center justify-center border-2 border-dashed border-teal-500/30">
-              <div className="text-center">
-                <Camera className="w-12 h-12 mx-auto mb-3 text-teal-500" />
-                <p className="text-sm text-muted-foreground">Camera preview will appear here</p>
-              </div>
+          <div className="flex flex-col items-center gap-4 py-4">
+            {/* Hidden canvas for capture */}
+            <canvas ref={canvasRef} className="hidden" />
+
+            {/* Camera / Captured Image / Analysis View */}
+            <div className="w-full aspect-video bg-gradient-to-br from-teal-500/10 to-blue-500/10 rounded-xl overflow-hidden relative border-2 border-teal-500/30">
+              {cameraActive ? (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
+              ) : capturedImage ? (
+                <img src={capturedImage} alt="Captured food" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <Camera className="w-12 h-12 mx-auto mb-3 text-teal-500" />
+                    <p className="text-sm text-muted-foreground">Tap "Open Camera" to start</p>
+                  </div>
+                </div>
+              )}
+
+              {isAnalyzing && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-xl">
+                  <div className="text-center text-white">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+                    <p className="text-sm">Analyzing food with AI...</p>
+                  </div>
+                </div>
+              )}
             </div>
-            <p className="text-sm text-muted-foreground text-center">
-              Point your camera at the food item. AI will automatically detect and estimate nutritional values.
-            </p>
-            <Button 
-              className="w-full bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white"
-              onClick={() => {
-                toast.info("Camera feature requires backend integration. Coming soon!");
-              }}
-            >
-              <Camera className="w-4 h-4 mr-2" />
-              Open Camera
-            </Button>
+
+            {/* Analysis Result */}
+            {analysisResult && (
+              <div className="w-full p-4 bg-gradient-to-r from-green-500/10 to-teal-500/10 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-lg">{analysisResult.name}</p>
+                    <p className="text-xs text-muted-foreground">{analysisResult.description}</p>
+                  </div>
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    analysisResult.confidence === "high" ? "bg-green-500/20 text-green-600" : "bg-yellow-500/20 text-yellow-600"
+                  }`}>
+                    {analysisResult.confidence === "high" ? "✓ High confidence" : "⚠ Low confidence"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-2 text-center text-sm">
+                  <div className="p-2 bg-white/50 rounded-lg">
+                    <p className="font-bold text-green-600">{analysisResult.calories}</p>
+                    <p className="text-xs text-muted-foreground">kcal</p>
+                  </div>
+                  <div className="p-2 bg-white/50 rounded-lg">
+                    <p className="font-bold text-teal-600">{analysisResult.protein}g</p>
+                    <p className="text-xs text-muted-foreground">Protein</p>
+                  </div>
+                  <div className="p-2 bg-white/50 rounded-lg">
+                    <p className="font-bold text-blue-600">{analysisResult.carbs}g</p>
+                    <p className="text-xs text-muted-foreground">Carbs</p>
+                  </div>
+                  <div className="p-2 bg-white/50 rounded-lg">
+                    <p className="font-bold text-teal-400">{analysisResult.fats}g</p>
+                    <p className="text-xs text-muted-foreground">Fats</p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Portion: {analysisResult.portion}</p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="w-full space-y-2">
+              {!cameraActive && !capturedImage && (
+                <Button
+                  className="w-full bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white"
+                  onClick={startCamera}
+                >
+                  <Camera className="w-4 h-4 mr-2" />
+                  Open Camera
+                </Button>
+              )}
+
+              {cameraActive && (
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={stopCamera}>
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1 bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white"
+                    onClick={capturePhoto}
+                  >
+                    📸 Capture
+                  </Button>
+                </div>
+              )}
+
+              {capturedImage && !analysisResult && (
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => { setCapturedImage(null); startCamera(); }}>
+                    Retake
+                  </Button>
+                  <Button
+                    className="flex-1 bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white"
+                    onClick={analyzeFood}
+                    disabled={isAnalyzing}
+                  >
+                    {isAnalyzing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                    Analyze with AI
+                  </Button>
+                </div>
+              )}
+
+              {analysisResult && (
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => { setCapturedImage(null); setAnalysisResult(null); startCamera(); }}>
+                    Scan Again
+                  </Button>
+                  <Button
+                    className="flex-1 bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white"
+                    onClick={addAnalyzedFood}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add to Log
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
