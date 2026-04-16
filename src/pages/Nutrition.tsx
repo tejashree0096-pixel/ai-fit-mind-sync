@@ -204,6 +204,136 @@ const Nutrition = () => {
   const [aiRecommendations, setAiRecommendations] = useState<AIRecommendation | null>(null);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
 
+  // Camera states
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<{
+    name: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fats: number;
+    portion: string;
+    confidence: string;
+    description: string;
+  } | null>(null);
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setCameraActive(false);
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    try {
+      setCapturedImage(null);
+      setAnalysisResult(null);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setCameraActive(true);
+    } catch (error: any) {
+      console.error("Camera error:", error);
+      if (error.name === "NotAllowedError") {
+        toast.error("Camera permission denied. Please allow camera access in your browser settings.");
+      } else if (error.name === "NotFoundError") {
+        toast.error("No camera found on this device.");
+      } else if (error.name === "NotReadableError") {
+        toast.error("Camera is being used by another application.");
+      } else {
+        toast.error("Failed to access camera. Please try again.");
+      }
+    }
+  }, []);
+
+  const capturePhoto = useCallback(() => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+    const imageDataUrl = canvas.toDataURL("image/jpeg", 0.8);
+    setCapturedImage(imageDataUrl);
+    stopCamera();
+  }, [stopCamera]);
+
+  const analyzeFood = useCallback(async () => {
+    if (!capturedImage) return;
+    setIsAnalyzing(true);
+    try {
+      const base64Data = capturedImage.split(",")[1];
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-food-image`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ imageBase64: base64Data }),
+        }
+      );
+
+      if (response.status === 429) {
+        toast.error("Too many requests. Please try again in a moment.");
+        return;
+      }
+      if (response.status === 402) {
+        toast.error("AI credits depleted.");
+        return;
+      }
+      if (!response.ok) throw new Error("Analysis failed");
+
+      const data = await response.json();
+      setAnalysisResult(data);
+      toast.success(`Detected: ${data.name}`);
+    } catch (error) {
+      console.error("Food analysis error:", error);
+      toast.error("Failed to analyze food. Please try again or add manually.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [capturedImage]);
+
+  const addAnalyzedFood = useCallback(() => {
+    if (!analysisResult) return;
+    handleAddFood({
+      name: analysisResult.name,
+      calories: analysisResult.calories,
+      protein: analysisResult.protein,
+      carbs: analysisResult.carbs,
+      fats: analysisResult.fats,
+      portion: analysisResult.portion,
+      emoji: "📸",
+    });
+    setScanDialogOpen(false);
+    setCapturedImage(null);
+    setAnalysisResult(null);
+  }, [analysisResult]);
+
+  const handleScanDialogClose = useCallback((open: boolean) => {
+    if (!open) {
+      stopCamera();
+      setCapturedImage(null);
+      setAnalysisResult(null);
+    }
+    setScanDialogOpen(open);
+  }, [stopCamera]);
+
   const fetchAIRecommendations = async () => {
     setIsLoadingAI(true);
     try {
