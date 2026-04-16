@@ -240,7 +240,20 @@ const Nutrition = () => {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        // Wait for video to actually have frame data before allowing capture
+        await new Promise<void>((resolve) => {
+          const video = videoRef.current!;
+          const onReady = () => {
+            video.removeEventListener('loadeddata', onReady);
+            resolve();
+          };
+          if (video.readyState >= 2) {
+            resolve();
+          } else {
+            video.addEventListener('loadeddata', onReady);
+          }
+          video.play();
+        });
       }
       setCameraActive(true);
     } catch (error: any) {
@@ -260,14 +273,24 @@ const Nutrition = () => {
   const capturePhoto = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
+    
+    // Ensure video stream has actual frame data before capturing
+    if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+      toast.error("Camera is still loading. Please wait a moment and try again.");
+      return;
+    }
+    
     const canvas = canvasRef.current;
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
-    const imageDataUrl = canvas.toDataURL("image/jpeg", 0.8);
-    if (!imageDataUrl || imageDataUrl === "data:,") {
+    
+    // Draw with explicit dimensions to ensure proper rendering
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    const imageDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    if (!imageDataUrl || imageDataUrl === "data:," || imageDataUrl.length < 1000) {
       toast.error("Failed to capture image. Please try again.");
       return;
     }
