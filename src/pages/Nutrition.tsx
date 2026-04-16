@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -203,6 +203,136 @@ const Nutrition = () => {
   ]);
   const [aiRecommendations, setAiRecommendations] = useState<AIRecommendation | null>(null);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+
+  // Camera states
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<{
+    name: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fats: number;
+    portion: string;
+    confidence: string;
+    description: string;
+  } | null>(null);
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setCameraActive(false);
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    try {
+      setCapturedImage(null);
+      setAnalysisResult(null);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setCameraActive(true);
+    } catch (error: any) {
+      console.error("Camera error:", error);
+      if (error.name === "NotAllowedError") {
+        toast.error("Camera permission denied. Please allow camera access in your browser settings.");
+      } else if (error.name === "NotFoundError") {
+        toast.error("No camera found on this device.");
+      } else if (error.name === "NotReadableError") {
+        toast.error("Camera is being used by another application.");
+      } else {
+        toast.error("Failed to access camera. Please try again.");
+      }
+    }
+  }, []);
+
+  const capturePhoto = useCallback(() => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+    const imageDataUrl = canvas.toDataURL("image/jpeg", 0.8);
+    setCapturedImage(imageDataUrl);
+    stopCamera();
+  }, [stopCamera]);
+
+  const analyzeFood = useCallback(async () => {
+    if (!capturedImage) return;
+    setIsAnalyzing(true);
+    try {
+      const base64Data = capturedImage.split(",")[1];
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-food-image`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ imageBase64: base64Data }),
+        }
+      );
+
+      if (response.status === 429) {
+        toast.error("Too many requests. Please try again in a moment.");
+        return;
+      }
+      if (response.status === 402) {
+        toast.error("AI credits depleted.");
+        return;
+      }
+      if (!response.ok) throw new Error("Analysis failed");
+
+      const data = await response.json();
+      setAnalysisResult(data);
+      toast.success(`Detected: ${data.name}`);
+    } catch (error) {
+      console.error("Food analysis error:", error);
+      toast.error("Failed to analyze food. Please try again or add manually.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [capturedImage]);
+
+  const addAnalyzedFood = useCallback(() => {
+    if (!analysisResult) return;
+    handleAddFood({
+      name: analysisResult.name,
+      calories: analysisResult.calories,
+      protein: analysisResult.protein,
+      carbs: analysisResult.carbs,
+      fats: analysisResult.fats,
+      portion: analysisResult.portion,
+      emoji: "📸",
+    });
+    setScanDialogOpen(false);
+    setCapturedImage(null);
+    setAnalysisResult(null);
+  }, [analysisResult]);
+
+  const handleScanDialogClose = useCallback((open: boolean) => {
+    if (!open) {
+      stopCamera();
+      setCapturedImage(null);
+      setAnalysisResult(null);
+    }
+    setScanDialogOpen(open);
+  }, [stopCamera]);
 
   const fetchAIRecommendations = async () => {
     setIsLoadingAI(true);
@@ -785,7 +915,7 @@ const Nutrition = () => {
       </div>
 
       {/* Scan Food Dialog */}
-      <Dialog open={scanDialogOpen} onOpenChange={setScanDialogOpen}>
+      <Dialog open={scanDialogOpen} onOpenChange={handleScanDialogClose}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -793,28 +923,137 @@ const Nutrition = () => {
               Scan Food
             </DialogTitle>
             <DialogDescription>
-              Use your camera to scan and analyze food
+              Use your camera to scan and analyze food with AI
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col items-center gap-4 py-6">
-            <div className="w-full aspect-video bg-gradient-to-br from-teal-500/10 to-blue-500/10 rounded-xl flex items-center justify-center border-2 border-dashed border-teal-500/30">
-              <div className="text-center">
-                <Camera className="w-12 h-12 mx-auto mb-3 text-teal-500" />
-                <p className="text-sm text-muted-foreground">Camera preview will appear here</p>
-              </div>
+          <div className="flex flex-col items-center gap-4 py-4">
+            {/* Hidden canvas for capture */}
+            <canvas ref={canvasRef} className="hidden" />
+
+            {/* Camera / Captured Image / Analysis View */}
+            <div className="w-full aspect-video bg-gradient-to-br from-teal-500/10 to-blue-500/10 rounded-xl overflow-hidden relative border-2 border-teal-500/30">
+              {cameraActive ? (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
+              ) : capturedImage ? (
+                <img src={capturedImage} alt="Captured food" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <Camera className="w-12 h-12 mx-auto mb-3 text-teal-500" />
+                    <p className="text-sm text-muted-foreground">Tap "Open Camera" to start</p>
+                  </div>
+                </div>
+              )}
+
+              {isAnalyzing && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-xl">
+                  <div className="text-center text-white">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+                    <p className="text-sm">Analyzing food with AI...</p>
+                  </div>
+                </div>
+              )}
             </div>
-            <p className="text-sm text-muted-foreground text-center">
-              Point your camera at the food item. AI will automatically detect and estimate nutritional values.
-            </p>
-            <Button 
-              className="w-full bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white"
-              onClick={() => {
-                toast.info("Camera feature requires backend integration. Coming soon!");
-              }}
-            >
-              <Camera className="w-4 h-4 mr-2" />
-              Open Camera
-            </Button>
+
+            {/* Analysis Result */}
+            {analysisResult && (
+              <div className="w-full p-4 bg-gradient-to-r from-green-500/10 to-teal-500/10 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-lg">{analysisResult.name}</p>
+                    <p className="text-xs text-muted-foreground">{analysisResult.description}</p>
+                  </div>
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    analysisResult.confidence === "high" ? "bg-green-500/20 text-green-600" : "bg-yellow-500/20 text-yellow-600"
+                  }`}>
+                    {analysisResult.confidence === "high" ? "✓ High confidence" : "⚠ Low confidence"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-2 text-center text-sm">
+                  <div className="p-2 bg-white/50 rounded-lg">
+                    <p className="font-bold text-green-600">{analysisResult.calories}</p>
+                    <p className="text-xs text-muted-foreground">kcal</p>
+                  </div>
+                  <div className="p-2 bg-white/50 rounded-lg">
+                    <p className="font-bold text-teal-600">{analysisResult.protein}g</p>
+                    <p className="text-xs text-muted-foreground">Protein</p>
+                  </div>
+                  <div className="p-2 bg-white/50 rounded-lg">
+                    <p className="font-bold text-blue-600">{analysisResult.carbs}g</p>
+                    <p className="text-xs text-muted-foreground">Carbs</p>
+                  </div>
+                  <div className="p-2 bg-white/50 rounded-lg">
+                    <p className="font-bold text-teal-400">{analysisResult.fats}g</p>
+                    <p className="text-xs text-muted-foreground">Fats</p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Portion: {analysisResult.portion}</p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="w-full space-y-2">
+              {!cameraActive && !capturedImage && (
+                <Button
+                  className="w-full bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white"
+                  onClick={startCamera}
+                >
+                  <Camera className="w-4 h-4 mr-2" />
+                  Open Camera
+                </Button>
+              )}
+
+              {cameraActive && (
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={stopCamera}>
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1 bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white"
+                    onClick={capturePhoto}
+                  >
+                    📸 Capture
+                  </Button>
+                </div>
+              )}
+
+              {capturedImage && !analysisResult && (
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => { setCapturedImage(null); startCamera(); }}>
+                    Retake
+                  </Button>
+                  <Button
+                    className="flex-1 bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white"
+                    onClick={analyzeFood}
+                    disabled={isAnalyzing}
+                  >
+                    {isAnalyzing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                    Analyze with AI
+                  </Button>
+                </div>
+              )}
+
+              {analysisResult && (
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => { setCapturedImage(null); setAnalysisResult(null); startCamera(); }}>
+                    Scan Again
+                  </Button>
+                  <Button
+                    className="flex-1 bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white"
+                    onClick={addAnalyzedFood}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add to Log
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
