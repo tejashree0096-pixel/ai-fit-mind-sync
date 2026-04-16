@@ -261,12 +261,16 @@ const Nutrition = () => {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.drawImage(video, 0, 0);
     const imageDataUrl = canvas.toDataURL("image/jpeg", 0.8);
+    if (!imageDataUrl || imageDataUrl === "data:,") {
+      toast.error("Failed to capture image. Please try again.");
+      return;
+    }
     setCapturedImage(imageDataUrl);
     stopCamera();
   }, [stopCamera]);
