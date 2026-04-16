@@ -261,21 +261,33 @@ const Nutrition = () => {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.drawImage(video, 0, 0);
     const imageDataUrl = canvas.toDataURL("image/jpeg", 0.8);
+    if (!imageDataUrl || imageDataUrl === "data:,") {
+      toast.error("Failed to capture image. Please try again.");
+      return;
+    }
     setCapturedImage(imageDataUrl);
     stopCamera();
   }, [stopCamera]);
 
   const analyzeFood = useCallback(async () => {
-    if (!capturedImage) return;
+    if (!capturedImage) {
+      toast.error("No image captured. Please take a photo first.");
+      return;
+    }
+    const base64Data = capturedImage.split(",")[1];
+    if (!base64Data || base64Data.length < 100) {
+      toast.error("Image capture failed. Please retake the photo.");
+      setCapturedImage(null);
+      return;
+    }
     setIsAnalyzing(true);
     try {
-      const base64Data = capturedImage.split(",")[1];
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-food-image`,
         {
@@ -299,6 +311,10 @@ const Nutrition = () => {
       if (!response.ok) throw new Error("Analysis failed");
 
       const data = await response.json();
+      if (data.error) {
+        toast.error(data.error);
+        return;
+      }
       setAnalysisResult(data);
       toast.success(`Detected: ${data.name}`);
     } catch (error) {
