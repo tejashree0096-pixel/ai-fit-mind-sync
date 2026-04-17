@@ -406,9 +406,17 @@ const Onboarding = () => {
                 <ArrowLeft className="w-4 h-4" />
                 Back
               </Button>
-              <Button variant="gradient" onClick={nextStep} className="gap-2">
-                {currentStep === 5 ? "Complete Setup" : "Continue"}
-                <ArrowRight className="w-4 h-4" />
+              <Button variant="gradient" onClick={nextStep} className="gap-2" disabled={saving}>
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                  </>
+                ) : (
+                  <>
+                    {currentStep === 5 ? "Complete Setup" : "Continue"}
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </Button>
             </div>
           </div>
