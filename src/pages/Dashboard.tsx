@@ -4,89 +4,57 @@ import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { ActivityTracker } from "@/components/dashboard/ActivityTracker";
 import { ReminderManager } from "@/components/dashboard/ReminderManager";
+import { WeightTracker } from "@/components/dashboard/WeightTracker";
+import { AIWorkoutSuggestion } from "@/components/dashboard/AIWorkoutSuggestion";
 import { supabase } from "@/integrations/supabase/client";
-import { 
+import {
   Dumbbell, Apple, Brain, TrendingUp, ArrowRight, Sparkles, Calendar
 } from "lucide-react";
 
-interface UserProfile {
-  age: string;
-  gender: string;
-  height: string;
-  weight: string;
-  fitnessGoal: string;
-  foodPreference: string;
-  workoutExperience: string;
-  workoutTime: string;
-  stressLevel: number;
-  sleepQuality: number;
-}
-
 const Dashboard = () => {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [displayName, setDisplayName] = useState<string>("there");
+  const [weightInfo, setWeightInfo] = useState<{ weight: number | null; goal_weight: number | null }>({ weight: null, goal_weight: null });
   const [workoutCount, setWorkoutCount] = useState(0);
   const [nutritionCount, setNutritionCount] = useState(0);
 
   useEffect(() => {
-    const stored = localStorage.getItem("userProfile");
-    if (stored) setProfile(JSON.parse(stored));
-
-    const fetchCounts = async () => {
+    (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { count: wc } = await supabase.from("workout_history").select("*", { count: "exact", head: true }).eq("user_id", user.id);
-      const { count: nc } = await supabase.from("nutrition_logs").select("*", { count: "exact", head: true }).eq("user_id", user.id);
+      const [{ data: profile }, { count: wc }, { count: nc }] = await Promise.all([
+        supabase.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle(),
+        supabase.from("workout_history").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+        supabase.from("nutrition_logs").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+      ]);
+      const name = profile?.full_name
+        || (user.user_metadata as any)?.full_name
+        || user.email?.split("@")[0]
+        || "there";
+      setDisplayName(name);
       setWorkoutCount(wc || 0);
       setNutritionCount(nc || 0);
-    };
-    fetchCounts();
+    })();
   }, []);
 
-  const goalLabels: Record<string, string> = {
-    "fat-loss": "Fat Loss",
-    "muscle-gain": "Muscle Gain",
-    "endurance": "Endurance",
-    "flexibility": "Flexibility",
-  };
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
         {/* Welcome Header */}
         <div className="mb-8">
-          <h1 className="font-display font-bold text-3xl md:text-4xl mb-2">Welcome back! 👋</h1>
-          <p className="text-muted-foreground">Your AI coach is ready. Let's crush your goals today!</p>
+          <h1 className="font-display font-bold text-3xl md:text-4xl mb-2">
+            {greeting}, <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">{displayName}</span> 👋
+          </h1>
+          <p className="text-muted-foreground">Welcome back. Your AI coach is ready — let's crush your goals today.</p>
         </div>
 
-        {/* Profile Summary */}
-        {profile && (
-          <div className="glass-card p-6 rounded-2xl mb-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-2xl font-bold text-primary-foreground">
-                  {profile.gender === "Male" ? "👨" : profile.gender === "Female" ? "👩" : "🧑"}
-                </div>
-                <div>
-                  <div className="font-display font-semibold text-lg">Your Profile</div>
-                  <div className="text-sm text-muted-foreground">
-                    {profile.age} years • {profile.height}cm • {profile.weight}kg
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                      {goalLabels[profile.fitnessGoal]}
-                    </span>
-                    <span className="px-2 py-1 rounded-full bg-accent/10 text-accent text-xs font-medium">
-                      {workoutCount} workouts
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <Link to="/onboarding">
-                <Button variant="outline" size="sm">Edit Profile</Button>
-              </Link>
-            </div>
-          </div>
-        )}
+        {/* Weight + AI Workout */}
+        <div className="grid lg:grid-cols-2 gap-6 mb-8">
+          <WeightTracker onUpdate={(d) => setWeightInfo({ weight: d.weight, goal_weight: d.goal_weight })} />
+          <AIWorkoutSuggestion currentWeight={weightInfo.weight} goalWeight={weightInfo.goal_weight} />
+        </div>
 
         {/* Activity Tracker + Reminders */}
         <div className="grid lg:grid-cols-2 gap-6 mb-8">
