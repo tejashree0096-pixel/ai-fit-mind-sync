@@ -38,9 +38,9 @@ export const Footer = () => {
         </div>
         <div className="mt-12 pt-8 border-t border-border/30 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">
-            © 2024 AI Fitness Arena. Built with <Heart className="w-4 h-4 inline text-destructive" />
+            © {new Date().getFullYear()} AI Fitness Arena. Train smarter <Heart className="w-4 h-4 inline text-destructive" />
           </p>
-          <p className="text-sm text-muted-foreground">Powered by AI • React • TypeScript</p>
+          <p className="text-sm text-muted-foreground">AI-Powered Personal Fitness</p>
         </div>
       </div>
     </footer>

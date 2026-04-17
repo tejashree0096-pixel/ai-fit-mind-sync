@@ -6,6 +6,7 @@ import logoImage from "@/assets/logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { toast } from "sonner";
+import { UserMenu } from "./UserMenu";
 
 const publicLinks = [
   { name: "Home", path: "/" },
@@ -70,10 +71,7 @@ export const Navbar = () => {
 
           <div className="hidden md:flex items-center gap-3">
             {user ? (
-              <Button variant="outline" onClick={handleLogout} className="gap-2 border-border/60">
-                <LogOut className="w-4 h-4" />
-                Logout
-              </Button>
+              <UserMenu user={user} />
             ) : (
               <Link to="/auth">
                 <Button variant="gradient" size="default" className="gap-2">
