@@ -38,7 +38,8 @@ import {
   Leaf,
   Activity,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Upload
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -207,6 +208,7 @@ const Nutrition = () => {
   // Camera states
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -221,6 +223,38 @@ const Nutrition = () => {
     confidence: string;
     description: string;
   } | null>(null);
+
+  const handleFilePick = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image must be smaller than 10MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      if (!result || result.length < 1000) {
+        toast.error("Could not read this image. Try another file.");
+        return;
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+      setCameraActive(false);
+      setAnalysisResult(null);
+      setCapturedImage(result);
+      toast.success("Image loaded — ready to analyze");
+    };
+    reader.onerror = () => toast.error("Failed to read image");
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }, []);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -1038,14 +1072,30 @@ const Nutrition = () => {
 
             {/* Action Buttons */}
             <div className="w-full space-y-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFilePick}
+              />
               {!cameraActive && !capturedImage && (
-                <Button
-                  className="w-full bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white"
-                  onClick={startCamera}
-                >
-                  <Camera className="w-4 h-4 mr-2" />
-                  Open Camera
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    className="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white"
+                    onClick={startCamera}
+                  >
+                    <Camera className="w-4 h-4 mr-2" />
+                    Open Camera
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Photo
+                  </Button>
+                </div>
               )}
 
               {cameraActive && (

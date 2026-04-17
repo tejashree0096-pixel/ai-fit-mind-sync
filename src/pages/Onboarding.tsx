@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { 
   ArrowRight, 
   ArrowLeft, 
@@ -12,7 +14,8 @@ import {
   Apple, 
   Activity,
   Brain,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from "lucide-react";
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -22,6 +25,7 @@ interface UserProfile {
   gender: string;
   height: string;
   weight: string;
+  goalWeight: string;
   fitnessGoal: string;
   foodPreference: string;
   workoutExperience: string;
@@ -41,11 +45,13 @@ const steps = [
 const Onboarding = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState<Step>(1);
+  const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<UserProfile>({
     age: "",
     gender: "",
     height: "",
     weight: "",
+    goalWeight: "",
     fitnessGoal: "",
     foodPreference: "",
     workoutExperience: "",
@@ -53,6 +59,28 @@ const Onboarding = () => {
     stressLevel: 5,
     sleepQuality: 5,
   });
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("age, height, weight, goal_weight, fitness_goal")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (data) {
+        setProfile((p) => ({
+          ...p,
+          age: data.age?.toString() ?? p.age,
+          height: data.height?.toString() ?? p.height,
+          weight: data.weight?.toString() ?? p.weight,
+          goalWeight: (data as any).goal_weight?.toString() ?? p.goalWeight,
+          fitnessGoal: data.fitness_goal ?? p.fitnessGoal,
+        }));
+      }
+    })();
+  }, []);
 
   const updateProfile = (field: keyof UserProfile, value: string | number) => {
     setProfile(prev => ({ ...prev, [field]: value }));
@@ -67,9 +95,30 @@ const Onboarding = () => {
     if (currentStep > 1) setCurrentStep((currentStep - 1) as Step);
   };
 
-  const handleComplete = () => {
-    // Store profile in localStorage for now
+  const handleComplete = async () => {
+    setSaving(true);
     localStorage.setItem("userProfile", JSON.stringify(profile));
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const payload: any = {
+        user_id: user.id,
+        age: profile.age ? parseInt(profile.age) : null,
+        height: profile.height ? parseFloat(profile.height) : null,
+        weight: profile.weight ? parseFloat(profile.weight) : null,
+        goal_weight: profile.goalWeight ? parseFloat(profile.goalWeight) : null,
+        fitness_goal: profile.fitnessGoal || null,
+      };
+      const { error } = await supabase
+        .from("profiles")
+        .upsert(payload, { onConflict: "user_id" });
+      if (error) {
+        toast.error("Could not save profile");
+        setSaving(false);
+        return;
+      }
+      toast.success("Profile saved!");
+    }
+    setSaving(false);
     navigate("/dashboard");
   };
 
@@ -132,6 +181,21 @@ const Onboarding = () => {
                   className="bg-secondary/50"
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="goalWeight">Goal Weight (kg)</Label>
+              <Input
+                id="goalWeight"
+                type="number"
+                step="0.1"
+                placeholder="65"
+                value={profile.goalWeight}
+                onChange={(e) => updateProfile("goalWeight", e.target.value)}
+                className="bg-secondary/50"
+              />
+              <p className="text-xs text-muted-foreground">
+                Used to personalize your AI workout intensity (fat loss, maintain, or muscle gain).
+              </p>
             </div>
           </div>
         );
@@ -342,9 +406,17 @@ const Onboarding = () => {
                 <ArrowLeft className="w-4 h-4" />
                 Back
               </Button>
-              <Button variant="gradient" onClick={nextStep} className="gap-2">
-                {currentStep === 5 ? "Complete Setup" : "Continue"}
-                <ArrowRight className="w-4 h-4" />
+              <Button variant="gradient" onClick={nextStep} className="gap-2" disabled={saving}>
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                  </>
+                ) : (
+                  <>
+                    {currentStep === 5 ? "Complete Setup" : "Continue"}
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </Button>
             </div>
           </div>
