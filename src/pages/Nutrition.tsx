@@ -1039,14 +1039,30 @@ const Nutrition = () => {
 
             {/* Action Buttons */}
             <div className="w-full space-y-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFilePick}
+              />
               {!cameraActive && !capturedImage && (
-                <Button
-                  className="w-full bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white"
-                  onClick={startCamera}
-                >
-                  <Camera className="w-4 h-4 mr-2" />
-                  Open Camera
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    className="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white"
+                    onClick={startCamera}
+                  >
+                    <Camera className="w-4 h-4 mr-2" />
+                    Open Camera
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Photo
+                  </Button>
+                </div>
               )}
 
               {cameraActive && (
