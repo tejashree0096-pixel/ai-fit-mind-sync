@@ -182,6 +182,21 @@ const Onboarding = () => {
                 />
               </div>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="goalWeight">Goal Weight (kg)</Label>
+              <Input
+                id="goalWeight"
+                type="number"
+                step="0.1"
+                placeholder="65"
+                value={profile.goalWeight}
+                onChange={(e) => updateProfile("goalWeight", e.target.value)}
+                className="bg-secondary/50"
+              />
+              <p className="text-xs text-muted-foreground">
+                Used to personalize your AI workout intensity (fat loss, maintain, or muscle gain).
+              </p>
+            </div>
           </div>
         );
 
