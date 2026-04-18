@@ -348,34 +348,6 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
               />
             </div>
 
-            {/* Gender toggle (overlay top-center) */}
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-card/80 backdrop-blur-sm rounded-full p-0.5 border border-border/40">
-              <button
-                onClick={() => setDemoGender("male")}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all ${
-                  demoGender === "male"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                title="Male demonstrator"
-              >
-                <User className="w-2.5 h-2.5" />
-                Male
-              </button>
-              <button
-                onClick={() => setDemoGender("female")}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all ${
-                  demoGender === "female"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                title="Female demonstrator"
-              >
-                <UserRound className="w-2.5 h-2.5" />
-                Female
-              </button>
-            </div>
-
             {/* Speaking indicator */}
             {isSpeaking && voiceEnabled && (
               <div className="absolute top-2 left-2 flex items-center gap-1 bg-accent/20 border border-accent/30 rounded-md px-2 py-0.5">
