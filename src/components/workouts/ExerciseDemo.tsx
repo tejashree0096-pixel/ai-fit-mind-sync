@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   Play, Pause, RotateCcw, ChevronLeft, ChevronRight, Zap,
-  Volume2, VolumeX, Mic, MicOff, Snail, Rabbit
+  Volume2, VolumeX, Mic, MicOff, Snail, Rabbit, Maximize2, Timer, Flame
 } from "lucide-react";
 import { ExerciseVideoPlayer } from "./ExerciseVideoPlayer";
 import { exerciseAnimationData, defaultAnimation } from "./exerciseAnimationData";
@@ -36,6 +37,8 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
   const [voiceVolume, setVoiceVolume] = useState(0.8);
   const [coachingPace, setCoachingPace] = useState<CoachingPace>("normal");
   const [repCount, setRepCount] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [demoGender, setDemoGender] = useDemoGender();
   const animationRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
@@ -167,12 +170,23 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
     return stopAnimation;
   }, [isPlaying, isVisible, animate, stopAnimation]);
 
+  // Timer — counts elapsed seconds while playing
+  useEffect(() => {
+    if (!isPlaying || !isVisible) return;
+    const id = window.setInterval(() => {
+      setElapsedSeconds((s) => s + 1);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [isPlaying, isVisible]);
+
   useEffect(() => {
     if (!isVisible) {
       setIsPlaying(false);
       setCurrentStepIndex(0);
       setInterpolationProgress(1);
       setRepCount(0);
+      setElapsedSeconds(0);
+      setIsFullscreen(false);
       repCountRef.current = 0;
       stopAnimation();
       stopVoice();
@@ -205,6 +219,7 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
     setCurrentStepIndex(0);
     setInterpolationProgress(1);
     setRepCount(0);
+    setElapsedSeconds(0);
     repCountRef.current = 0;
     holdTimeRef.current = 0;
     lastTimeRef.current = 0;
@@ -496,6 +511,15 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
               <Button variant="outline" size="sm" className="h-8 text-xs gap-1 border-border/50" onClick={handleSpeedCycle}>
                 <Zap className="w-3 h-3" /> {SPEEDS[speedIndex].label}
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1 border-border/50"
+                onClick={() => setIsFullscreen(true)}
+                title="Open fullscreen view"
+              >
+                <Maximize2 className="w-3 h-3" /> Fullscreen
+              </Button>
 
               {/* Voice controls */}
               <div className="flex items-center gap-1.5 ml-auto">
@@ -542,6 +566,86 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
           </div>
         </div>
       </div>
+
+      {/* Fullscreen overlay */}
+      <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+        <DialogContent className="max-w-5xl w-[95vw] h-[90vh] p-0 bg-background/95 backdrop-blur-xl border-primary/20 flex flex-col overflow-hidden">
+          <div className="px-5 pt-5 pb-3 border-b border-border/40 flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <DialogTitle className="font-display text-lg truncate">{exerciseName}</DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                {muscle} • Step {currentStepIndex + 1} of {steps.length}
+              </DialogDescription>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0 mr-8">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+                <Timer className="w-3.5 h-3.5 text-primary" />
+                <span className="text-sm font-mono font-bold text-primary tabular-nums">
+                  {String(Math.floor(elapsedSeconds / 60)).padStart(2, "0")}:
+                  {String(elapsedSeconds % 60).padStart(2, "0")}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/20">
+                <Flame className="w-3.5 h-3.5 text-accent" />
+                <span className="text-sm font-mono font-bold text-accent tabular-nums">
+                  {repCount} {repCount === 1 ? "rep" : "reps"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Large player */}
+          <div className="flex-1 relative bg-background/60 overflow-hidden">
+            <div className="absolute inset-0 opacity-[0.04]"
+              style={{
+                backgroundImage: `linear-gradient(hsl(var(--primary)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary)) 1px, transparent 1px)`,
+                backgroundSize: "32px 32px",
+              }}
+            />
+            <div className="relative z-10 h-full p-6 flex items-center justify-center">
+              <ExerciseVideoPlayer
+                exerciseName={exerciseName}
+                isPlaying={isPlaying}
+                speed={speed}
+                gender={demoGender}
+              />
+            </div>
+
+            <div className="absolute top-3 right-3 text-xs font-mono font-bold text-primary bg-primary/15 px-2.5 py-1 rounded-md border border-primary/20">
+              {SPEEDS[speedIndex].label}
+            </div>
+
+            {currentCoachStep && (
+              <div className="absolute bottom-3 left-3 right-3 mx-auto max-w-2xl bg-card/85 backdrop-blur border border-accent/20 rounded-lg px-4 py-2.5">
+                <p className="text-sm font-semibold text-foreground/90 mb-0.5">
+                  {currentStep.label}
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {currentCoachStep.instruction}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="px-5 py-4 border-t border-border/40 flex items-center justify-center gap-3 flex-wrap">
+            <Button variant="ghost" size="icon" className="rounded-full h-10 w-10" onClick={() => handleStepNav(-1)}>
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
+            <Button variant="gradient" size="icon" className="rounded-full h-12 w-12" onClick={handlePlayPause}>
+              {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+            </Button>
+            <Button variant="ghost" size="icon" className="rounded-full h-10 w-10" onClick={() => handleStepNav(1)}>
+              <ChevronRight className="w-5 h-5" />
+            </Button>
+            <Button variant="outline" size="sm" className="h-10 gap-1.5 border-border/50 ml-2" onClick={handleReplay}>
+              <RotateCcw className="w-4 h-4" /> Replay
+            </Button>
+            <Button variant="outline" size="sm" className="h-10 gap-1.5 border-border/50" onClick={handleSpeedCycle}>
+              <Zap className="w-4 h-4" /> {SPEEDS[speedIndex].label}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
