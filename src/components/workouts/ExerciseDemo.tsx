@@ -3,12 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
   Play, Pause, RotateCcw, ChevronLeft, ChevronRight, Zap,
-  Volume2, VolumeX, Mic, MicOff, Snail, Rabbit
+  Volume2, VolumeX, Mic, MicOff, Snail, Rabbit, User, UserRound
 } from "lucide-react";
 import { ExerciseVideoPlayer } from "./ExerciseVideoPlayer";
 import { exerciseAnimationData, defaultAnimation } from "./exerciseAnimationData";
 import { voiceCoachingData, defaultVoiceCoaching } from "./voiceCoachingData";
 import { useVoiceCoach } from "@/hooks/useVoiceCoach";
+import { useDemoGender } from "@/hooks/useDemoGender";
 
 interface ExerciseDemoProps {
   exerciseName: string;
@@ -35,6 +36,7 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
   const [voiceVolume, setVoiceVolume] = useState(0.8);
   const [coachingPace, setCoachingPace] = useState<CoachingPace>("normal");
   const [repCount, setRepCount] = useState(0);
+  const [demoGender, setDemoGender] = useDemoGender();
   const animationRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
   const holdTimeRef = useRef<number>(0);
@@ -342,7 +344,36 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
                 exerciseName={exerciseName}
                 isPlaying={isPlaying}
                 speed={speed}
+                gender={demoGender}
               />
+            </div>
+
+            {/* Gender toggle (overlay top-center) */}
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-card/80 backdrop-blur-sm rounded-full p-0.5 border border-border/40">
+              <button
+                onClick={() => setDemoGender("male")}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all ${
+                  demoGender === "male"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Male demonstrator"
+              >
+                <User className="w-2.5 h-2.5" />
+                Male
+              </button>
+              <button
+                onClick={() => setDemoGender("female")}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all ${
+                  demoGender === "female"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Female demonstrator"
+              >
+                <UserRound className="w-2.5 h-2.5" />
+                Female
+              </button>
             </div>
 
             {/* Speaking indicator */}
