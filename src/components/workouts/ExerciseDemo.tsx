@@ -511,6 +511,15 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
               <Button variant="outline" size="sm" className="h-8 text-xs gap-1 border-border/50" onClick={handleSpeedCycle}>
                 <Zap className="w-3 h-3" /> {SPEEDS[speedIndex].label}
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1 border-border/50"
+                onClick={() => setIsFullscreen(true)}
+                title="Open fullscreen view"
+              >
+                <Maximize2 className="w-3 h-3" /> Fullscreen
+              </Button>
 
               {/* Voice controls */}
               <div className="flex items-center gap-1.5 ml-auto">
