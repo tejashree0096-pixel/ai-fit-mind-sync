@@ -170,12 +170,23 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
     return stopAnimation;
   }, [isPlaying, isVisible, animate, stopAnimation]);
 
+  // Timer — counts elapsed seconds while playing
+  useEffect(() => {
+    if (!isPlaying || !isVisible) return;
+    const id = window.setInterval(() => {
+      setElapsedSeconds((s) => s + 1);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [isPlaying, isVisible]);
+
   useEffect(() => {
     if (!isVisible) {
       setIsPlaying(false);
       setCurrentStepIndex(0);
       setInterpolationProgress(1);
       setRepCount(0);
+      setElapsedSeconds(0);
+      setIsFullscreen(false);
       repCountRef.current = 0;
       stopAnimation();
       stopVoice();
