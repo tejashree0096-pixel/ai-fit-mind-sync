@@ -219,6 +219,7 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
     setCurrentStepIndex(0);
     setInterpolationProgress(1);
     setRepCount(0);
+    setElapsedSeconds(0);
     repCountRef.current = 0;
     holdTimeRef.current = 0;
     lastTimeRef.current = 0;
