@@ -5,7 +5,7 @@ import {
   Play, Pause, RotateCcw, ChevronLeft, ChevronRight, Zap,
   Volume2, VolumeX, Mic, MicOff, Snail, Rabbit
 } from "lucide-react";
-import { HumanFigure } from "./HumanFigure";
+import { ExerciseVideoPlayer } from "./ExerciseVideoPlayer";
 import { exerciseAnimationData, defaultAnimation } from "./exerciseAnimationData";
 import { voiceCoachingData, defaultVoiceCoaching } from "./voiceCoachingData";
 import { useVoiceCoach } from "@/hooks/useVoiceCoach";
@@ -337,11 +337,11 @@ export const ExerciseDemo = ({ exerciseName, muscle, isVisible }: ExerciseDemoPr
               }}
             />
             <div className="absolute inset-1.5 rounded-lg border border-primary/20" />
-            <div className="relative z-10 flex items-center justify-center h-full p-4">
-              <HumanFigure
-                pose={currentStep.pose}
-                prevPose={prevStep.pose}
-                progress={interpolationProgress}
+            <div className="relative z-10 flex items-center justify-center h-full p-2">
+              <ExerciseVideoPlayer
+                exerciseName={exerciseName}
+                isPlaying={isPlaying}
+                speed={speed}
               />
             </div>
 
