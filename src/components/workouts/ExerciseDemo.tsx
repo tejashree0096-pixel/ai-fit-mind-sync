@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
   Play, Pause, RotateCcw, ChevronLeft, ChevronRight, Zap,
-  Volume2, VolumeX, Mic, MicOff, Snail, Rabbit, User, UserRound
+  Volume2, VolumeX, Mic, MicOff, Snail, Rabbit
 } from "lucide-react";
 import { ExerciseVideoPlayer } from "./ExerciseVideoPlayer";
 import { exerciseAnimationData, defaultAnimation } from "./exerciseAnimationData";
