@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   Play, Pause, RotateCcw, ChevronLeft, ChevronRight, Zap,
-  Volume2, VolumeX, Mic, MicOff, Snail, Rabbit
+  Volume2, VolumeX, Mic, MicOff, Snail, Rabbit, Maximize2, Timer, Flame
 } from "lucide-react";
 import { ExerciseVideoPlayer } from "./ExerciseVideoPlayer";
 import { exerciseAnimationData, defaultAnimation } from "./exerciseAnimationData";
