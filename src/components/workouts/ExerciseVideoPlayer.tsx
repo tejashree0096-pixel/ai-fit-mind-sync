@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Dumbbell } from "lucide-react";
-import { getExerciseMedia } from "./exerciseGifLibrary";
+import { getExerciseMedia, type DemoGender } from "./exerciseGifLibrary";
 
 interface ExerciseVideoPlayerProps {
   exerciseName: string;
   isPlaying: boolean;
   speed: number;
+  gender: DemoGender;
 }
 
 /**
@@ -16,17 +17,18 @@ export const ExerciseVideoPlayer = ({
   exerciseName,
   isPlaying,
   speed,
+  gender,
 }: ExerciseVideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoFailed, setVideoFailed] = useState(false);
   const [posterFailed, setPosterFailed] = useState(false);
-  const media = getExerciseMedia(exerciseName);
+  const media = getExerciseMedia(exerciseName, gender);
 
-  // Reset failure flags when exercise changes
+  // Reset failure flags when exercise or gender changes
   useEffect(() => {
     setVideoFailed(false);
     setPosterFailed(false);
-  }, [exerciseName]);
+  }, [exerciseName, gender]);
 
   // Sync playback state and speed
   useEffect(() => {
@@ -40,7 +42,7 @@ export const ExerciseVideoPlayer = ({
     } else {
       video.pause();
     }
-  }, [isPlaying, speed, exerciseName]);
+  }, [isPlaying, speed, exerciseName, gender]);
 
   if (!media || videoFailed) {
     // Fallback to poster image, then to placeholder
