@@ -45,10 +45,8 @@ const Coach = () => {
 
   useEffect(() => { scrollToBottom(); }, [messages]);
 
-  // Load profile data
+  // Load profile data from the database (no client-side caching of sensitive health data)
   const getUserProfile = async () => {
-    const stored = localStorage.getItem("userProfile");
-    if (stored) return JSON.parse(stored);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
     const { data } = await supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle();
@@ -80,11 +78,14 @@ const Coach = () => {
     const assistantId = crypto.randomUUID();
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Please sign in to chat with the coach.");
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({ messages: chatHistory, userProfile: profile }),
       });

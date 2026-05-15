@@ -1,21 +1,40 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function errorResponse(status: number, message: string) {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!authHeader.startsWith("Bearer ")) return errorResponse(401, "Unauthorized");
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(
+      authHeader.replace("Bearer ", ""),
+    );
+    if (claimsErr || !claimsData?.claims) return errorResponse(401, "Unauthorized");
+
     const { mood, energy, stress, sleep, currentCalories, targetCalories, proteinGap } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+      console.error("LOVABLE_API_KEY is not configured");
+      return errorResponse(500, "Internal server error");
     }
 
     const systemPrompt = `You are a nutrition and wellness AI assistant for an Indian fitness app called "AI Fitness Arena". 
@@ -72,30 +91,18 @@ Format your response as JSON with this structure:
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits depleted. Please add credits to continue." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      if (response.status === 429) return errorResponse(429, "Rate limit exceeded. Please try again in a moment.");
+      if (response.status === 402) return errorResponse(402, "AI credits depleted. Please add credits to continue.");
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
-      throw new Error("Failed to get AI recommendations");
+      return errorResponse(500, "Internal server error");
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
 
-    // Parse the JSON response from the AI
     let recommendations;
     try {
-      // Extract JSON from the response (it might be wrapped in markdown code blocks)
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         recommendations = JSON.parse(jsonMatch[0]);
@@ -104,7 +111,6 @@ Format your response as JSON with this structure:
       }
     } catch (parseError) {
       console.error("Failed to parse AI response:", content);
-      // Provide fallback recommendations
       recommendations = {
         meals: [
           { name: "Banana Lassi", benefit: "Natural mood booster with potassium", calories: 180, protein: 5 },
@@ -122,9 +128,6 @@ Format your response as JSON with this structure:
     });
   } catch (error) {
     console.error("Error in meal-recommendations:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error occurred" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return errorResponse(500, "Internal server error");
   }
 });

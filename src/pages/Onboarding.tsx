@@ -97,7 +97,6 @@ const Onboarding = () => {
 
   const handleComplete = async () => {
     setSaving(true);
-    localStorage.setItem("userProfile", JSON.stringify(profile));
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const payload: any = {

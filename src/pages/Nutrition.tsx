@@ -42,6 +42,7 @@ import {
   Upload
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AIRecommendation {
   meals: Array<{
@@ -345,13 +346,16 @@ const Nutrition = () => {
     }
     setIsAnalyzing(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toast.error("Please sign in to scan food."); return; }
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-food-image`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
           body: JSON.stringify({ imageBase64: base64Data }),
         }
@@ -410,13 +414,16 @@ const Nutrition = () => {
   const fetchAIRecommendations = async () => {
     setIsLoadingAI(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toast.error("Please sign in for AI recommendations."); setIsLoadingAI(false); return; }
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/meal-recommendations`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
           body: JSON.stringify({
             mood: currentMood.mood,
