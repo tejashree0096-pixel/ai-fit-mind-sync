@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { BreathingSession } from "@/components/nutrition/BreathingSession";
 
 interface AIRecommendation {
   meals: Array<{
@@ -205,6 +206,7 @@ const Nutrition = () => {
   ]);
   const [aiRecommendations, setAiRecommendations] = useState<AIRecommendation | null>(null);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [breathingOpen, setBreathingOpen] = useState(false);
 
   // Camera states
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -877,7 +879,10 @@ const Nutrition = () => {
                 <p className="text-sm text-muted-foreground mb-4">
                   Take a moment to relax with a guided breathing session
                 </p>
-                <Button className="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white">
+                <Button
+                  onClick={() => setBreathingOpen(true)}
+                  className="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white"
+                >
                   Start 2-Minute Session
                 </Button>
               </div>
@@ -1338,6 +1343,7 @@ const Nutrition = () => {
           </div>
         </DialogContent>
       </Dialog>
+      <BreathingSession open={breathingOpen} onOpenChange={setBreathingOpen} />
     </Layout>
   );
 };
