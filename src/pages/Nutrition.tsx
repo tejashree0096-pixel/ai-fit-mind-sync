@@ -206,6 +206,7 @@ const Nutrition = () => {
   ]);
   const [aiRecommendations, setAiRecommendations] = useState<AIRecommendation | null>(null);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [breathingOpen, setBreathingOpen] = useState(false);
 
   // Camera states
   const videoRef = useRef<HTMLVideoElement>(null);
