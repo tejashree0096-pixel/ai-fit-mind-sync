@@ -1088,7 +1088,9 @@ const Nutrition = () => {
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                className="hidden"
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden="true"
                 onChange={handleFilePick}
               />
               {!cameraActive && !capturedImage && (
