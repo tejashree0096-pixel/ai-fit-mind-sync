@@ -43,7 +43,35 @@ const Workouts = () => {
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [completedExercises, setCompletedExercises] = useState<number[]>([]);
   const [expandedDemo, setExpandedDemo] = useState<number | null>(null);
-  const exercises = workoutType === "home" ? homeWorkouts : gymWorkouts;
+  const [regenSeed, setRegenSeed] = useState(0);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+
+  const baseExercises = workoutType === "home" ? homeWorkouts : gymWorkouts;
+  const exercises = (() => {
+    if (regenSeed === 0) return baseExercises;
+    // Deterministic shuffle based on seed
+    const arr = [...baseExercises];
+    let s = regenSeed;
+    for (let i = arr.length - 1; i > 0; i--) {
+      s = (s * 9301 + 49297) % 233280;
+      const j = Math.floor((s / 233280) * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  })();
+
+  const handleRegenerate = () => {
+    setIsRegenerating(true);
+    setIsWorkoutActive(false);
+    setCompletedExercises([]);
+    setCurrentExerciseIndex(0);
+    setExpandedDemo(null);
+    setTimeout(() => {
+      setRegenSeed(Date.now());
+      setIsRegenerating(false);
+      toast.success("✨ New AI workout generated!");
+    }, 600);
+  };
 
   const handleStartWorkout = () => {
     setIsWorkoutActive(true);
