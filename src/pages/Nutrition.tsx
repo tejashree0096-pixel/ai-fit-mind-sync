@@ -1088,7 +1088,9 @@ const Nutrition = () => {
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                className="hidden"
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden="true"
                 onChange={handleFilePick}
               />
               {!cameraActive && !capturedImage && (
@@ -1101,8 +1103,13 @@ const Nutrition = () => {
                     Open Camera
                   </Button>
                   <Button
+                    type="button"
                     variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
                   >
                     <Upload className="w-4 h-4 mr-2" />
                     Upload Photo
