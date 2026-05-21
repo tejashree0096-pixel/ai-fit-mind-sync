@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Dumbbell, Home, Building2, Clock, Flame, ChevronRight,
   Play, RefreshCw, Sparkles, Pause, CheckCircle2, Eye, EyeOff
@@ -45,6 +46,7 @@ const Workouts = () => {
   const [expandedDemo, setExpandedDemo] = useState<number | null>(null);
   const [regenSeed, setRegenSeed] = useState(0);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isSavingWorkout, setIsSavingWorkout] = useState(false);
 
   const baseExercises = workoutType === "home" ? homeWorkouts : gymWorkouts;
   const exercises = (() => {
@@ -86,6 +88,58 @@ const Workouts = () => {
     toast.info("Workout paused");
   };
 
+  const saveCompletedWorkout = async (completedList: number[]) => {
+    setIsSavingWorkout(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setIsSavingWorkout(false);
+      return;
+    }
+
+    const durationMinutes = 45;
+    const caloriesBurned = workoutType === "gym" ? 420 : 350;
+    const today = new Date().toISOString().split("T")[0];
+    const completedWorkout = {
+      user_id: user.id,
+      workout_name: `${workoutType === "home" ? "Home" : "Gym"} Strength Session`,
+      workout_type: workoutType,
+      workout_date: today,
+      duration_minutes: durationMinutes,
+      calories_burned: caloriesBurned,
+      exercises: exercises.map((exercise, exerciseIndex) => ({
+        ...exercise,
+        completed: completedList.includes(exerciseIndex),
+      })),
+    };
+
+    const { error: workoutError } = await supabase.from("workout_history").insert(completedWorkout);
+    const { data: activity } = await supabase
+      .from("activity_logs")
+      .select("id, calories_burned, active_minutes")
+      .eq("user_id", user.id)
+      .eq("log_date", today)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const activityPayload = {
+      user_id: user.id,
+      log_date: today,
+      calories_burned: (activity?.calories_burned ?? 0) + caloriesBurned,
+      active_minutes: (activity?.active_minutes ?? 0) + durationMinutes,
+    };
+    const { error: activityError } = activity
+      ? await supabase.from("activity_logs").update(activityPayload).eq("id", activity.id)
+      : await supabase.from("activity_logs").insert(activityPayload);
+
+    setIsSavingWorkout(false);
+    if (workoutError || activityError) {
+      toast.error("Workout completed, but progress could not be saved");
+    } else {
+      toast.success("🎉 Workout saved to Progress!");
+    }
+  };
+
   const handleCompleteExercise = (index: number) => {
     if (!completedExercises.includes(index)) {
       const updated = [...completedExercises, index];
@@ -95,9 +149,9 @@ const Workouts = () => {
         setExpandedDemo(index + 1);
         toast.success(`${exercises[index].name} completed! Next: ${exercises[index + 1].name}`);
       } else {
-        toast.success("🎉 Workout Complete! Great job!");
         setIsWorkoutActive(false);
         setExpandedDemo(null);
+        saveCompletedWorkout(updated);
       }
     }
   };
