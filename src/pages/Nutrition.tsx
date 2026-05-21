@@ -1103,8 +1103,13 @@ const Nutrition = () => {
                     Open Camera
                   </Button>
                   <Button
+                    type="button"
                     variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
                   >
                     <Upload className="w-4 h-4 mr-2" />
                     Upload Photo
