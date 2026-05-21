@@ -119,9 +119,9 @@ const Workouts = () => {
               AI-generated workout with real-time exercise demos
             </p>
           </div>
-          <Button variant="gradient" className="gap-2">
-            <RefreshCw className="w-4 h-4" />
-            Regenerate
+          <Button variant="gradient" className="gap-2" onClick={handleRegenerate} disabled={isRegenerating}>
+            <RefreshCw className={`w-4 h-4 ${isRegenerating ? "animate-spin" : ""}`} />
+            {isRegenerating ? "Regenerating..." : "Regenerate"}
           </Button>
         </div>
 
