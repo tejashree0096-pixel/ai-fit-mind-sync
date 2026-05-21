@@ -33,6 +33,8 @@ export function useActivityTracker() {
       .select("*")
       .eq("user_id", user.id)
       .eq("log_date", today)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (data) {
@@ -62,14 +64,21 @@ export function useActivityTracker() {
       .order("log_date", { ascending: true });
 
     if (data) {
-      setWeeklyData(data.map(d => ({
-        log_date: d.log_date,
-        steps: d.steps ?? 0,
-        calories_burned: d.calories_burned ?? 0,
-        water_glasses: d.water_glasses ?? 0,
-        sleep_hours: Number(d.sleep_hours) || 0,
-        active_minutes: d.active_minutes ?? 0,
-      })));
+      const byDate = new Map<string, ActivityData & { log_date: string }>();
+
+      data.forEach(d => {
+        const current = byDate.get(d.log_date) ?? { log_date: d.log_date, ...defaultActivity };
+        byDate.set(d.log_date, {
+          log_date: d.log_date,
+          steps: current.steps + (d.steps ?? 0),
+          calories_burned: current.calories_burned + (d.calories_burned ?? 0),
+          water_glasses: current.water_glasses + (d.water_glasses ?? 0),
+          sleep_hours: Math.max(current.sleep_hours, Number(d.sleep_hours) || 0),
+          active_minutes: current.active_minutes + (d.active_minutes ?? 0),
+        });
+      });
+
+      setWeeklyData(Array.from(byDate.values()));
     }
   }, []);
 
@@ -85,21 +94,33 @@ export function useActivityTracker() {
     const today = new Date().toISOString().split("T")[0];
     const newActivity = { ...activity, [field]: value };
 
-    const { error } = await supabase
+    const { data: existing } = await supabase
       .from("activity_logs")
-      .upsert({
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("log_date", today)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const payload = {
         user_id: user.id,
         log_date: today,
         ...newActivity,
-      }, { onConflict: "user_id,log_date" });
+      };
+
+    const { error } = existing
+      ? await supabase.from("activity_logs").update(payload).eq("id", existing.id)
+      : await supabase.from("activity_logs").insert(payload);
 
     if (error) {
       toast.error("Failed to update activity");
       console.error(error);
     } else {
       setActivity(newActivity);
+      fetchWeekly();
     }
-  }, [activity]);
+  }, [activity, fetchWeekly]);
 
   const incrementField = useCallback(async (field: keyof ActivityData, amount: number = 1) => {
     await updateActivity(field, activity[field] + amount);
