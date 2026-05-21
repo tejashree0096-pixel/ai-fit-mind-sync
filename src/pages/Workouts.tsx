@@ -288,9 +288,10 @@ const Workouts = () => {
                         variant="gradient" 
                         size="icon" 
                         className="rounded-full h-9 w-9"
+                        disabled={isSavingWorkout}
                         onClick={() => handleCompleteExercise(index)}
                       >
-                        <CheckCircle2 className="w-4 h-4" />
+                        <CheckCircle2 className={`w-4 h-4 ${isSavingWorkout ? "animate-pulse" : ""}`} />
                       </Button>
                     ) : (
                       <Button 
